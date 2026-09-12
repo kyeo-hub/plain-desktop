@@ -44,22 +44,40 @@ export interface CaptureMessages {
   }
 }
 
+// `screen_capture.ui.*` is read via the real app-wide translation system's
+// `$t()` by components outside the overlay (ChatInput.vue, CaptureShortcutModal.vue),
+// so it stays in `src/locales/<locale>/screen-capture.ts` where the locale build
+// plugin precompiles it. See `./locales/README.md` for the full split rationale.
+export interface CaptureUiMessages {
+  menuA11y: string
+  shortcutSettings: string
+  openPermissionSettings: string
+  shortcutCurrent: string
+  shortcutRecording: string
+  shortcutRecordHint: string
+  shortcutInvalidKey: string
+  shortcutConflictHint: string
+  shortcutReset: string
+  shortcutSave: string
+  shortcutSaveFailed: string
+}
+
 export interface CaptureLocaleModule {
-  screen_capture: CaptureMessages
+  screen_capture: { ui: CaptureUiMessages }
 }
 
 export const CAPTURE_LOCALE_CODES = ['bn', 'de', 'en-US', 'es', 'fr', 'hi', 'it', 'ja', 'ko', 'nl', 'pt', 'ru', 'ta', 'tr', 'vi', 'zh-CN', 'zh-TW'] as const
 
-const localeModules = import.meta.glob<CaptureLocaleModule>('../../locales/*/screen-capture.ts', {
+const localeModules = import.meta.glob<CaptureMessages>('./locales/*.ts', {
   eager: true,
   import: 'default',
 })
 
 const messagesByLocale = Object.fromEntries(
   Object.entries(localeModules).map(([path, module]) => {
-    const code = path.match(/\/locales\/([^/]+)\/screen-capture\.ts$/)?.[1]
+    const code = path.match(/\/locales\/([^/]+)\.ts$/)?.[1]
     if (!code) throw new Error(`unexpected capture locale path: ${path}`)
-    return [code, module.screen_capture]
+    return [code, module]
   })
 ) as Record<string, CaptureMessages>
 

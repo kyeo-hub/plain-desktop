@@ -1,5 +1,6 @@
+use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, plugin::TauriPlugin};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use super::commands::{finish_reserved_capture, new_capture_session_id, schedule_capture_timeouts};
 use super::contract::{CaptureError, CaptureErrorCode, CaptureOrigin};
@@ -20,11 +21,138 @@ pub enum LinuxShortcutBackend {
     WaylandPortalRequired,
 }
 
+/// Conflict-free defaults: QQ uses ⌃⌘A, WeChat covers ⌥⌘A/⌘⇧A/Alt+A and
+/// DingTalk ⌘⇧A, so the two-modifier A combos are all taken. The
+/// three-modifier A keeps the ecosystem's "A = capture" muscle memory without
+/// colliding; Windows/Linux move off the A family entirely (Ctrl+Alt+X,
+/// Xnip-style "X = select a region").
 pub fn capture_shortcut_accelerator(platform: CaptureShortcutPlatform) -> &'static str {
     match platform {
-        CaptureShortcutPlatform::MacOs => "Option+Command+A",
-        CaptureShortcutPlatform::OtherDesktop => "Alt+A",
+        CaptureShortcutPlatform::MacOs => "Control+Option+Command+A",
+        CaptureShortcutPlatform::OtherDesktop => "Ctrl+Alt+X",
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureShortcutStatus {
+    pub registered: bool,
+    pub accelerator: String,
+    pub error: Option<String>,
+}
+
+static SHORTCUT_STATUS: std::sync::Mutex<Option<CaptureShortcutStatus>> =
+    std::sync::Mutex::new(None);
+
+fn record_status(status: CaptureShortcutStatus) {
+    *SHORTCUT_STATUS.lock().expect("shortcut status lock") = Some(status);
+}
+
+pub fn snapshot_status() -> CaptureShortcutStatus {
+    SHORTCUT_STATUS
+        .lock()
+        .expect("shortcut status lock")
+        .clone()
+        .unwrap_or_else(|| CaptureShortcutStatus {
+            registered: false,
+            accelerator: default_capture_accelerator().to_string(),
+            error: None,
+        })
+}
+
+fn default_capture_accelerator() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        capture_shortcut_accelerator(CaptureShortcutPlatform::MacOs)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        capture_shortcut_accelerator(CaptureShortcutPlatform::OtherDesktop)
+    }
+}
+
+/// Resolve the accelerator to register: the persisted user choice when it
+/// parses, otherwise the platform default.
+fn configured_capture_accelerator<R: Runtime>(app: &AppHandle<R>) -> String {
+    crate::prefs::get_capture_shortcut(app)
+        .filter(|value| value.parse::<Shortcut>().is_ok())
+        .unwrap_or_else(|| default_capture_accelerator().to_string())
+}
+
+/// Reject bare-key accelerators: a global hotkey without modifiers would
+/// swallow ordinary typing system-wide.
+fn validate_accelerator(accelerator: &str) -> Result<Shortcut, CaptureError> {
+    let shortcut: Shortcut = accelerator.parse().map_err(|_| {
+        CaptureError::new(
+            CaptureErrorCode::CaptureFailed,
+            "the shortcut is not a valid accelerator",
+        )
+    })?;
+    if shortcut.mods.is_empty() {
+        return Err(CaptureError::new(
+            CaptureErrorCode::CaptureFailed,
+            "the shortcut must include at least one modifier key",
+        ));
+    }
+    Ok(shortcut)
+}
+
+/// Apply a user shortcut change: unregister the current binding, persist the
+/// choice (`None` restores the platform default), and register the new one.
+/// The Wayland portal binds shortcuts at session creation, so a change only
+/// takes effect after an app restart there.
+pub(crate) fn apply_shortcut_change<R: Runtime>(
+    app: &AppHandle<R>,
+    accelerator: Option<String>,
+) -> CaptureShortcutStatus {
+    #[cfg(target_os = "linux")]
+    if current_linux_shortcut_backend() == LinuxShortcutBackend::WaylandPortalRequired {
+        crate::prefs::set_capture_shortcut(app, accelerator.as_deref());
+        let status = CaptureShortcutStatus {
+            registered: false,
+            accelerator: accelerator.unwrap_or_else(|| default_capture_accelerator().to_string()),
+            error: Some(
+                "the shortcut is saved; restart the app for Wayland to rebind it".to_string(),
+            ),
+        };
+        record_status(status.clone());
+        return status;
+    }
+
+    let choice = accelerator.filter(|value| !value.trim().is_empty());
+    if let Some(value) = &choice
+        && let Err(error) = validate_accelerator(value)
+    {
+        let status = CaptureShortcutStatus {
+            registered: snapshot_status().registered,
+            accelerator: value.clone(),
+            error: Some(error.to_string()),
+        };
+        record_status(status.clone());
+        return status;
+    }
+
+    if let Ok(current) = configured_capture_accelerator(app).parse::<Shortcut>() {
+        let _ = app.global_shortcut().unregister(current);
+    }
+
+    crate::prefs::set_capture_shortcut(app, choice.as_deref());
+    let wanted = configured_capture_accelerator(app);
+
+    let status = match register_ordinary_capture_shortcut(app) {
+        Ok(()) => CaptureShortcutStatus {
+            registered: true,
+            accelerator: wanted,
+            error: None,
+        },
+        Err(error) => CaptureShortcutStatus {
+            registered: false,
+            accelerator: wanted,
+            error: Some(error.to_string()),
+        },
+    };
+    record_status(status.clone());
+    status
 }
 
 /// The ordinary Tauri plugin constructs an X11 global-hotkey manager during
@@ -62,33 +190,37 @@ pub fn register_ordinary_capture_shortcut<R: Runtime>(
             "the X11 global shortcut plugin is disabled for a Wayland session",
         ));
     }
-    app.global_shortcut()
-        .on_shortcut(current_capture_accelerator(), |app, _, event| {
+    let accelerator = configured_capture_accelerator(app);
+    let registration = app
+        .global_shortcut()
+        .on_shortcut(accelerator.as_str(), |app, _, event| {
             if event.state == ShortcutState::Pressed {
                 log::info!("global screen capture shortcut pressed");
                 trigger_global_capture(app);
             }
-        })
-        .map_err(|_| {
-            CaptureError::new(
-                CaptureErrorCode::CaptureFailed,
-                "could not register the screen capture global shortcut",
-            )
-        })
+        });
+    let status = match registration {
+        Ok(()) => CaptureShortcutStatus {
+            registered: true,
+            accelerator: accelerator.clone(),
+            error: None,
+        },
+        Err(_) => CaptureShortcutStatus {
+            registered: false,
+            accelerator: accelerator.clone(),
+            error: Some("could not register the screen capture global shortcut".to_string()),
+        },
+    };
+    record_status(status);
+    registration.map_err(|_| {
+        CaptureError::new(
+            CaptureErrorCode::CaptureFailed,
+            "could not register the screen capture global shortcut",
+        )
+    })
 }
 
-fn current_capture_accelerator() -> &'static str {
-    #[cfg(target_os = "macos")]
-    {
-        capture_shortcut_accelerator(CaptureShortcutPlatform::MacOs)
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        capture_shortcut_accelerator(CaptureShortcutPlatform::OtherDesktop)
-    }
-}
-
-fn trigger_global_capture<R: Runtime>(app: &AppHandle<R>) {
+pub(crate) fn trigger_global_capture<R: Runtime>(app: &AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let reservation_app = app.clone();
@@ -197,7 +329,7 @@ pub async fn register_wayland_portal_capture_shortcut<R: Runtime>(
         .create_session(CreateSessionOptions::default())
         .await
         .map_err(portal_error)?;
-    let preferred = to_portal_trigger(current_capture_accelerator());
+    let preferred = to_portal_trigger(configured_capture_accelerator(&app));
     let shortcut = NewShortcut::new("plain-screen-capture", "Open Plain screen capture")
         .preferred_trigger(preferred.as_deref());
     let response = proxy
@@ -217,6 +349,11 @@ pub async fn register_wayland_portal_capture_shortcut<R: Runtime>(
         ));
     }
     let mut activated = proxy.receive_activated().await.map_err(portal_error)?;
+    record_status(CaptureShortcutStatus {
+        registered: true,
+        accelerator: configured_capture_accelerator(&app),
+        error: None,
+    });
     let listener = tauri::async_runtime::spawn(async move {
         // Keep the portal session alive for the complete signal stream lifetime.
         let _session = session;
@@ -288,15 +425,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn issue_defined_shortcuts_map_exactly_by_platform() {
+    fn issue_defined_shortcuts_avoid_the_im_squatted_a_combos() {
         assert_eq!(
             capture_shortcut_accelerator(CaptureShortcutPlatform::MacOs),
-            "Option+Command+A"
+            "Control+Option+Command+A"
         );
         assert_eq!(
             capture_shortcut_accelerator(CaptureShortcutPlatform::OtherDesktop),
-            "Alt+A"
+            "Ctrl+Alt+X"
         );
+    }
+
+    #[test]
+    fn bare_keys_are_rejected_and_modifiers_are_required() {
+        assert!(validate_accelerator("A").is_err());
+        assert!(validate_accelerator("NotARealThing").is_err());
+        assert!(validate_accelerator("").is_err());
+        validate_accelerator("Ctrl+Alt+X").expect("valid accelerator");
+        validate_accelerator("Control+Option+Command+A").expect("valid mac accelerator");
+    }
+
+    #[test]
+    fn status_snapshot_defaults_to_the_platform_default_unregistered() {
+        let status = snapshot_status();
+        assert!(!status.registered);
+        assert_eq!(status.accelerator, default_capture_accelerator());
+        assert!(status.error.is_none());
     }
 
     #[test]

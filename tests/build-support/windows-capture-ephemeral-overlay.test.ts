@@ -27,9 +27,9 @@ describe('Windows capture overlay session residency', () => {
     )
 
     expect(applicationSource).toMatch(
-      /#\[cfg\(not\(target_os = "windows"\)\)\][\s\S]{0,600}screen capture overlay prewarm started/
+      /\/\/ Windows and macOS use per-capture ephemeral overlays[\s\S]{0,200}#\[cfg\(not\(any\(target_os = "windows", target_os = "macos"\)\)\)\][\s\S]{0,600}screen capture overlay prewarm started/
     )
-    expect(residencyPolicy).toContain('cfg!(target_os = "windows")')
+    expect(residencyPolicy).toContain('cfg!(any(target_os = "windows", target_os = "macos"))')
     expect(cargoManifest).not.toContain('"unstable"')
     expect(cargoManifest).not.toContain('webview2-com')
     expect(cargoManifest).not.toContain('windows-core')

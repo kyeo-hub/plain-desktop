@@ -25,9 +25,55 @@
               <v-icon-button @click="sendFiles">
                 <i-material-symbols:folder-outline-rounded />
               </v-icon-button>
-              <v-icon-button v-if="isTauri" v-tooltip="$t('screenshot')" data-testid="screen-capture-button" @click="$emit('request-capture')">
-                <i-material-symbols:content-cut-rounded />
-              </v-icon-button>
+              <div v-if="isTauri" class="capture-split">
+                <button
+                  v-tooltip="captureTooltip"
+                  type="button"
+                  class="btn-icon capture-main"
+                  data-testid="screen-capture-button"
+                  @click="$emit('request-capture')"
+                >
+                  <i-material-symbols:content-cut-rounded />
+                  <span
+                    v-if="shortcutStatus && !shortcutStatus.registered"
+                    class="capture-error-badge"
+                    data-testid="capture-shortcut-error-badge"
+                  >!</span>
+                </button>
+                <v-dropdown v-model="captureMenuOpen">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="btn-icon capture-arrow"
+                      :aria-label="$t('screen_capture.ui.menuA11y')"
+                      data-testid="screen-capture-menu-button"
+                    >
+                      <i-material-symbols:keyboard-arrow-down-rounded />
+                    </button>
+                  </template>
+                  <div class="capture-input-menu">
+                    <button type="button" class="capture-input-menu-item" data-testid="capture-menu-capture" @click="menuCapture">
+                      <i-material-symbols:content-cut-rounded />
+                      <span>{{ $t('screenshot') }}</span>
+                      <span v-if="shortcutStatus?.accelerator" class="capture-input-menu-hint">{{ formatAccelerator(shortcutStatus.accelerator, isMacPlatform()) }}</span>
+                    </button>
+                    <button type="button" class="capture-input-menu-item" data-testid="capture-menu-shortcut" @click="openShortcutSettings">
+                      <i-material-symbols:keyboard-outline-rounded />
+                      <span>{{ $t('screen_capture.ui.shortcutSettings') }}</span>
+                    </button>
+                    <button
+                      v-if="shortcutStatus && !shortcutStatus.registered"
+                      type="button"
+                      class="capture-input-menu-item capture-input-menu-danger"
+                      data-testid="capture-menu-permission"
+                      @click="openPermissionSettings"
+                    >
+                      <i-material-symbols:error-outline-rounded />
+                      <span>{{ $t('screen_capture.ui.openPermissionSettings') }}</span>
+                    </button>
+                  </div>
+                </v-dropdown>
+              </div>
             </div>
             <v-icon-button class="toolbar-send" :disabled="createLoading" @click="handleSend">
               <i-material-symbols:send-outline-rounded />
@@ -38,13 +84,18 @@
     </div>
     <input ref="fileInput" style="display: none" type="file" multiple @change="uploadFilesChanged" />
     <input ref="imageInput" style="display: none" type="file" accept="image/*, video/*" multiple @change="uploadImagesChanged" />
+    <CaptureShortcutModal :open="shortcutModalOpen" :status="shortcutStatus" @update:open="shortcutModalOpen = $event" @saved="onShortcutSaved" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isImage, isVideo } from '@/lib/file'
+import type { CaptureShortcutStatus } from '@/lib/screen-capture/capture-shortcut'
+import { formatAccelerator } from '@/lib/screen-capture/shortcut-recorder'
+import { isMacPlatform } from '@/lib/platform'
+import CaptureShortcutModal from './components/CaptureShortcutModal.vue'
 
 interface Props {
   modelValue: string
@@ -68,6 +119,46 @@ const fileInput = ref<HTMLInputElement>()
 const imageInput = ref<HTMLInputElement>()
 const displayDragMask = ref(false)
 const isComposing = ref(false)
+const captureMenuOpen = ref(false)
+const shortcutModalOpen = ref(false)
+const shortcutStatus = ref<CaptureShortcutStatus | null>(null)
+
+const captureTooltip = computed(() => {
+  const accelerator = shortcutStatus.value?.accelerator
+  if (!accelerator) return t('screenshot')
+  return `${t('screenshot')} ${formatAccelerator(accelerator, isMacPlatform())}`
+})
+
+onMounted(() => {
+  if (!isTauri) return
+  void import('@/lib/screen-capture/capture-shortcut')
+    .then(({ getCaptureShortcutStatus }) => getCaptureShortcutStatus())
+    .then((status) => {
+      shortcutStatus.value = status
+    })
+    .catch(() => {})
+})
+
+function menuCapture() {
+  captureMenuOpen.value = false
+  emit('request-capture')
+}
+
+function openShortcutSettings() {
+  captureMenuOpen.value = false
+  shortcutModalOpen.value = true
+}
+
+function openPermissionSettings() {
+  captureMenuOpen.value = false
+  void import('@/lib/screen-capture/capture-permission')
+    .then((module) => module.openScreenCapturePermissionSettings())
+    .catch(() => {})
+}
+
+function onShortcutSaved(status: CaptureShortcutStatus) {
+  shortcutStatus.value = status
+}
 
 function handleSend() {
   emit('send-message', '')
@@ -259,3 +350,108 @@ function pasteFiles(e: ClipboardEvent) {
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.capture-split {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+  }
+}
+
+.capture-split .btn-icon {
+  width: auto;
+  height: 32px;
+  border-radius: 0;
+  background: none;
+
+  &:hover:not(:disabled) {
+    background: none;
+  }
+}
+
+.capture-main {
+  padding: 0 2px 0 6px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.capture-arrow {
+  padding: 0 4px 0 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.capture-error-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+</style>
+
+<style lang="scss">
+/* Menu content teleports to <body>, so these styles cannot be scoped. */
+.capture-input-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+}
+
+.capture-input-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--md-sys-color-on-surface);
+  text-align: start;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: var(--md-sys-color-surface-variant);
+  }
+}
+
+.capture-input-menu-hint {
+  margin-inline-start: auto;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.75rem;
+}
+
+.capture-input-menu-danger {
+  color: var(--md-sys-color-error);
+}
+</style>

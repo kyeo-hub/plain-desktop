@@ -55,7 +55,7 @@
     </div>
     <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="QUERY_ALL_PACKAGES" />
     <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
-    <input ref="fileInput" style="display: none" type="file" accept=".apk" multiple @change="uploadChanged" />
+    <input ref="fileInput" style="display: none" type="file" accept=".apk,.apkm,.apks,.xapk" multiple @change="uploadChanged" />
   </div>
 </template>
 

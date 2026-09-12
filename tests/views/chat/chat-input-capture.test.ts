@@ -81,4 +81,38 @@ describe('ChatInput screen capture action', () => {
       expect(wrapper.emitted('request-capture')).toHaveLength(1)
     }
   })
+
+  it('splits the capture action into main button plus menu and wires shortcut state', () => {
+    expect(chatInputSource).toContain('data-testid="screen-capture-menu-button"')
+    expect(chatInputSource).toContain('data-testid="capture-shortcut-error-badge"')
+    expect(chatInputSource).toContain("v-if=\"shortcutStatus && !shortcutStatus.registered\"")
+    expect(chatInputSource).toContain('data-testid="capture-menu-shortcut"')
+    expect(chatInputSource).toContain('<CaptureShortcutModal')
+    expect(chatInputSource).toContain("import('@/lib/screen-capture/capture-shortcut')")
+  })
+
+  it('renders the menu trigger only in Tauri alongside the capture button', async () => {
+    const wrapper = mount(ChatInput, {
+      props: { modelValue: '', createLoading: false },
+      global: {
+        mocks: { $t: (key: string) => key },
+        directives: { tooltip: () => {} },
+        components: { VDropdown: { template: '<div><slot name="trigger" /></div>' } },
+        stubs: {
+          CaptureShortcutModal: true,
+          EmojiTextField: {
+            setup(_props: unknown, { slots }: any) {
+              return () => h('div', [slots.footer?.()])
+            },
+          },
+        },
+      },
+    })
+    wrappers.push(wrapper)
+
+    const menuButton = wrapper.find('[data-testid="screen-capture-menu-button"]')
+    expect(menuButton.exists()).toBe(__IS_TAURI__)
+    expect(wrapper.find('[data-testid="screen-capture-button"]').exists()).toBe(__IS_TAURI__)
+    expect(wrapper.find('[data-testid="capture-shortcut-error-badge"]').exists()).toBe(false)
+  })
 })

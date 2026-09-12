@@ -4,16 +4,16 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-#[cfg(test)]
-use super::backend::ScreenCaptureBackend;
 use super::buffers::validate_result_payload;
 use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureResultDescriptor,
-    CaptureResultSubmission, CaptureTarget, CaptureTriggerKind, CapturedFrame,
-    CapturedFrameDescriptor, MonitorGeometry, NativeCapturePhase,
+    CaptureOrigin, CaptureRequest, CaptureResultDescriptor, CaptureResultSubmission, CaptureTarget,
+    CaptureTriggerKind, CapturedFrame, CapturedFrameDescriptor, NativeCapturePhase,
 };
 use super::coordinator::{CaptureCallerRole, CaptureCleanup, CaptureCoordinator, TerminalOutcome};
 use super::export::{CaptureExportPort, SaveCaptureOutcome, normalized_png_path};
+#[cfg(test)]
+use crate::capture::Capture;
+use crate::capture::{CaptureError, CaptureErrorCode, DisplayInfo};
 
 pub const OVERLAY_WINDOW_LABEL_PREFIX: &str = "screen-capture-overlay";
 pub const OVERLAY_WINDOW_LABEL: &str = "screen-capture-overlay-1";
@@ -44,11 +44,15 @@ pub fn is_overlay_window_label(label: &str) -> bool {
         })
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OverlayWindowSpec {
     pub label: String,
     pub route: String,
     pub visible: bool,
+    /// Final on-screen geometry for platforms that create the overlay at its
+    /// destination size (macOS). `None` keeps the platform's default creation
+    /// geometry.
+    pub monitor: Option<DisplayInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -150,6 +154,7 @@ pub enum OverlayConcealment {
     RetirementScheduled,
     /// Hiding failed, so the adapter queued destruction outside the caller's
     /// stack. The error remains observable while retry waits for destruction.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     DestructionDeferred(CaptureError),
 }
 
@@ -224,6 +229,21 @@ pub trait CaptureWindowPort: Send + Sync {
     fn defers_overlay_position_until_presented(&self) -> bool {
         false
     }
+    /// macOS 26 never renders a WKWebView window that is resized after
+    /// creation: every geometry mutation — hidden or visible, any AppKit API —
+    /// leaves the window on-screen with zero composited pixels. The overlay is
+    /// therefore created at its final on-screen geometry and never repositioned;
+    /// presentation only orders the window front. When this returns true the
+    /// runtime must build the overlay spec with `monitor` set.
+    fn creates_overlay_at_final_geometry(&self) -> bool {
+        false
+    }
+    fn overlay_creation_monitor(&self) -> Result<DisplayInfo, CaptureError> {
+        Err(CaptureError::new(
+            CaptureErrorCode::OverlayFailed,
+            "capture overlays are not created at final geometry on this platform",
+        ))
+    }
     fn uses_ephemeral_overlay(&self) -> bool {
         false
     }
@@ -233,7 +253,7 @@ pub trait CaptureWindowPort: Send + Sync {
     fn wake_overlay_for_frame_delivery(
         &self,
         _label: &str,
-        _monitor: &MonitorGeometry,
+        _monitor: &DisplayInfo,
     ) -> Result<(), CaptureError> {
         Ok(())
     }
@@ -245,7 +265,7 @@ pub trait CaptureWindowPort: Send + Sync {
     /// Must enqueue the retry without synchronously calling back into runtime.
     fn defer_window_action_retry(&self, delay: Duration);
     fn focus_window(&self, label: &str) -> Result<(), CaptureError>;
-    fn position_overlay(&self, label: &str, monitor: &MonitorGeometry) -> Result<(), CaptureError>;
+    fn position_overlay(&self, label: &str, monitor: &DisplayInfo) -> Result<(), CaptureError>;
     fn show_overlay(&self, label: &str) -> Result<(), CaptureError>;
     fn emit_frame_available(
         &self,
@@ -371,9 +391,13 @@ struct RuntimeInner {
     current_overlay_generation: Option<u64>,
     loaded_overlay_generation: Option<u64>,
     retiring_overlay_generation: Option<u64>,
+    /// Monitor id the current overlay generation was created on. Frames
+    /// captured from any other display fail closed instead of being shown at
+    /// the wrong geometry.
+    overlay_creation_monitor_id: Option<String>,
     next_overlay_generation: u64,
     hidden_origin: Option<HiddenOrigin>,
-    pending_overlay_monitor: Option<MonitorGeometry>,
+    pending_overlay_monitor: Option<DisplayInfo>,
     pending_window_actions: Option<PendingWindowActions>,
     active_delivery_lease: Option<DeliveryLease>,
     last_completed_delivery: Option<CompletedDelivery>,
@@ -417,6 +441,7 @@ impl ScreenCaptureRuntime {
                 current_overlay_generation: None,
                 loaded_overlay_generation: None,
                 retiring_overlay_generation: None,
+                overlay_creation_monitor_id: None,
                 next_overlay_generation: 1,
                 hidden_origin: None,
                 pending_overlay_monitor: None,
@@ -522,6 +547,10 @@ impl ScreenCaptureRuntime {
         {
             return Ok(false);
         }
+        log::info!(
+            "screen capture session expired kind={kind:?} session={session_id} phase={:?}",
+            state.phase
+        );
         let cleanup = inner.coordinator.fail(
             session_id,
             CaptureError::new(
@@ -619,7 +648,7 @@ impl ScreenCaptureRuntime {
         session_id: String,
         target: CaptureTarget,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<CaptureStartResponse, CaptureError> {
         let _start = self.lock_capture_start()?;
         if !is_regular_window_label(caller_window_label) {
@@ -800,7 +829,7 @@ impl ScreenCaptureRuntime {
         origin: Option<CaptureOrigin>,
         target: Option<CaptureTarget>,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<CaptureStartResponse, CaptureError> {
         let _start = self.lock_capture_start()?;
         if target.as_ref().is_some_and(|candidate| {
@@ -834,7 +863,7 @@ impl ScreenCaptureRuntime {
         session_id: String,
         origin: Option<CaptureOrigin>,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<CaptureStartResponse, CaptureError> {
         let _start = self.lock_capture_start()?;
         let overlay_generation = self
@@ -904,7 +933,7 @@ impl ScreenCaptureRuntime {
         overlay_generation: u64,
         protocol_version: u32,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<NativeCapturePhase, CaptureError> {
         if protocol_version != CAPTURE_PROTOCOL_VERSION {
             return Err(CaptureError::new(
@@ -959,6 +988,16 @@ impl ScreenCaptureRuntime {
         let descriptor = frame.descriptor().clone();
         let overlay_label = overlay_window_label(ticket.overlay_generation);
         if let Err(error) = inner.coordinator.store_frame(&ticket.session_id, frame) {
+            inner.abort_session(&ticket.session_id, error.clone(), windows)?;
+            return Err(error);
+        }
+        if let Some(expected) = inner.overlay_creation_monitor_id.as_deref()
+            && expected != descriptor.monitor.id
+        {
+            let error = CaptureError::new(
+                CaptureErrorCode::InvalidMonitor,
+                "the captured display differs from the overlay display; trigger capture again",
+            );
             inner.abort_session(&ticket.session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -1064,12 +1103,13 @@ impl ScreenCaptureRuntime {
             .coordinator
             .frame_presented(caller_window_label, session_id, overlay_generation)?;
         let overlay_label = overlay_window_label(overlay_generation);
-        if let Some(monitor) = inner.pending_overlay_monitor.clone() {
-            if let Err(error) = windows.position_overlay(&overlay_label, &monitor) {
-                inner.abort_session(session_id, error.clone(), windows)?;
-                return Err(error);
-            }
-            inner.pending_overlay_monitor = None;
+        let pending_monitor = inner.pending_overlay_monitor.take();
+        if let Some(monitor) = &pending_monitor
+            && !windows.creates_overlay_at_final_geometry()
+            && let Err(error) = windows.position_overlay(&overlay_label, monitor)
+        {
+            inner.abort_session(session_id, error.clone(), windows)?;
+            return Err(error);
         }
         if let Err(error) = windows.show_overlay(&overlay_label) {
             inner.abort_session(session_id, error.clone(), windows)?;
@@ -1700,13 +1740,21 @@ impl ScreenCaptureRuntime {
                 "capture overlay creation gate is unavailable",
             )
         })?;
-        let (init, spec) = match self
-            .lock()?
-            .prepare_overlay(windows, allow_pending_cleanup)?
-        {
-            OverlayPreparation::Existing(init) => return Ok(init),
-            OverlayPreparation::Create { init, spec } => (init, spec),
+        // The destination monitor must be resolved before the runtime lock so
+        // platform window queries can never re-enter this runtime.
+        let creation_monitor = if windows.creates_overlay_at_final_geometry() {
+            Some(windows.overlay_creation_monitor()?)
+        } else {
+            None
         };
+        let (init, spec) =
+            match self
+                .lock()?
+                .prepare_overlay(windows, allow_pending_cleanup, creation_monitor)?
+            {
+                OverlayPreparation::Existing(init) => return Ok(init),
+                OverlayPreparation::Create { init, spec } => (init, spec),
+            };
 
         match windows.create_overlay(&spec) {
             Ok(()) => Ok(init),
@@ -1897,7 +1945,7 @@ impl RuntimeInner {
         target: Option<CaptureTarget>,
         overlay_generation: u64,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<CaptureStartResponse, CaptureError> {
         let request = CaptureRequest {
             session_id: session_id.clone(),
@@ -2100,6 +2148,7 @@ impl RuntimeInner {
         &mut self,
         windows: &dyn CaptureWindowPort,
         allow_pending_cleanup: bool,
+        creation_monitor: Option<DisplayInfo>,
     ) -> Result<OverlayPreparation, CaptureError> {
         if self.pending_window_actions.is_some() && !allow_pending_cleanup {
             return Err(CaptureError::new(
@@ -2116,6 +2165,16 @@ impl RuntimeInner {
         if let Some(overlay_generation) = self.current_overlay_generation {
             let overlay_label = overlay_window_label(overlay_generation);
             if windows.window_exists(&overlay_label) {
+                if creation_monitor.is_some() {
+                    // Final-geometry overlays are per-capture: a live retained
+                    // window would carry the previous capture's monitor. This
+                    // is unreachable after a normal session (the overlay is
+                    // destroyed at cleanup), so failing closed is correct.
+                    return Err(CaptureError::new(
+                        CaptureErrorCode::Busy,
+                        "a retained capture overlay is still present; trigger capture again",
+                    ));
+                }
                 return Ok(OverlayPreparation::Existing(OverlayInit {
                     overlay_generation,
                 }));
@@ -2138,9 +2197,11 @@ impl RuntimeInner {
             label: overlay_label,
             route: format!("{OVERLAY_ROUTE}?overlayGeneration={overlay_generation}"),
             visible: false,
+            monitor: creation_monitor,
         };
         self.current_overlay_generation = Some(overlay_generation);
         self.loaded_overlay_generation = None;
+        self.overlay_creation_monitor_id = spec.monitor.as_ref().map(|monitor| monitor.id.clone());
         Ok(OverlayPreparation::Create {
             init: OverlayInit { overlay_generation },
             spec,
@@ -2202,7 +2263,7 @@ impl RuntimeInner {
         &mut self,
         session_id: &str,
         windows: &dyn CaptureWindowPort,
-        backend: &dyn ScreenCaptureBackend,
+        backend: &dyn Capture,
     ) -> Result<(), CaptureError> {
         let state = self
             .coordinator
@@ -2234,7 +2295,7 @@ impl RuntimeInner {
             return Err(error);
         }
 
-        let frame = match super::backend::capture_frame_at_cursor(backend, session_id) {
+        let frame = match super::backend::capture_frame_at_cursor(backend, session_id, &[]) {
             Ok(frame) => frame,
             Err(error) => {
                 self.abort_session(session_id, error.clone(), windows)?;
@@ -2243,6 +2304,16 @@ impl RuntimeInner {
         };
         let descriptor = frame.descriptor().clone();
         if let Err(error) = self.coordinator.store_frame(session_id, frame) {
+            self.abort_session(session_id, error.clone(), windows)?;
+            return Err(error);
+        }
+        if let Some(expected) = self.overlay_creation_monitor_id.as_deref()
+            && expected != descriptor.monitor.id
+        {
+            let error = CaptureError::new(
+                CaptureErrorCode::InvalidMonitor,
+                "the captured display differs from the overlay display; trigger capture again",
+            );
             self.abort_session(session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -2492,6 +2563,12 @@ impl RuntimeInner {
         error_code: Option<CaptureErrorCode>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
+        log::info!(
+            "screen capture session ending session={} generation={} outcome={:?}",
+            cleanup.session_id,
+            cleanup.overlay_generation,
+            cleanup.outcome
+        );
         let origin = self
             .hidden_origin
             .take()
@@ -2633,13 +2710,14 @@ mod tests {
         SessionStartedPayload, TargetUnavailablePayload, acquire_and_publish_once,
         is_overlay_window_label, overlay_window_label,
     };
-    use crate::commands::screen_capture::backend::{
-        NativeFrame, ScreenCaptureBackend, capture_frame_at_cursor,
+    use crate::capture::{
+        Capture, DisplayInfo, Frame, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalRect,
+        PhysicalSize,
     };
+    use crate::commands::screen_capture::backend::capture_frame_at_cursor;
     use crate::commands::screen_capture::contract::{
         CaptureError, CaptureErrorCode, CaptureOrigin, CaptureResultSubmission, CaptureTarget,
-        CapturedFrame, LogicalPoint, LogicalSize, MonitorGeometry, NativeCapturePhase,
-        PhysicalPoint, PhysicalRect, PhysicalSize,
+        CapturedFrame, NativeCapturePhase,
     };
     use crate::commands::screen_capture::export::{CaptureExportPort, SaveCaptureOutcome};
 
@@ -2684,6 +2762,8 @@ mod tests {
         window_states: Mutex<HashMap<String, CaptureWindowState>>,
         operations: Mutex<Vec<WindowOperation>>,
         defer_position_until_presented: Mutex<bool>,
+        final_geometry_overlay: Mutex<bool>,
+        creation_monitor: Mutex<Option<DisplayInfo>>,
         ephemeral_overlay: Mutex<bool>,
         reentrant_runtime: Mutex<Option<Arc<ScreenCaptureRuntime>>>,
         reentrant_runtime_on_window_lookup: Mutex<Option<Arc<ScreenCaptureRuntime>>>,
@@ -2716,6 +2796,8 @@ mod tests {
                 ),
                 operations: Mutex::new(Vec::new()),
                 defer_position_until_presented: Mutex::new(false),
+                final_geometry_overlay: Mutex::new(false),
+                creation_monitor: Mutex::new(None),
                 ephemeral_overlay: Mutex::new(false),
                 reentrant_runtime: Mutex::new(None),
                 reentrant_runtime_on_window_lookup: Mutex::new(None),
@@ -2732,6 +2814,13 @@ mod tests {
             self.operations.lock().expect("operations lock").clone()
         }
 
+        fn deferred_destroys(&self) -> Vec<String> {
+            self.deferred_destroys
+                .lock()
+                .expect("deferred destroys")
+                .clone()
+        }
+
         fn clear_operations(&self) {
             self.operations.lock().expect("operations lock").clear();
         }
@@ -2741,6 +2830,25 @@ mod tests {
                 .defer_position_until_presented
                 .lock()
                 .expect("deferred position policy lock") = true;
+        }
+
+        fn create_overlay_at_final_geometry(&self) {
+            *self
+                .final_geometry_overlay
+                .lock()
+                .expect("final-geometry overlay policy lock") = true;
+            *self
+                .ephemeral_overlay
+                .lock()
+                .expect("ephemeral overlay policy lock") = true;
+            *self
+                .defer_position_until_presented
+                .lock()
+                .expect("deferred position policy lock") = true;
+        }
+
+        fn set_creation_monitor(&self, monitor: DisplayInfo) {
+            *self.creation_monitor.lock().expect("creation monitor lock") = Some(monitor);
         }
 
         fn use_ephemeral_overlay(&self) {
@@ -2937,6 +3045,39 @@ mod tests {
                 .expect("deferred position policy lock")
         }
 
+        fn creates_overlay_at_final_geometry(&self) -> bool {
+            *self
+                .final_geometry_overlay
+                .lock()
+                .expect("final-geometry overlay policy lock")
+        }
+
+        fn overlay_creation_monitor(&self) -> Result<DisplayInfo, CaptureError> {
+            // FakeBackend publishes frames from "monitor-2", so the default
+            // creation monitor matches the captured display.
+            self.creation_monitor
+                .lock()
+                .expect("creation monitor lock")
+                .clone()
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    Ok(DisplayInfo {
+                        id: "monitor-2".to_string(),
+                        physical_origin: PhysicalPoint { x: -8, y: 12 },
+                        physical_size: PhysicalSize {
+                            width: 2,
+                            height: 2,
+                        },
+                        logical_origin: LogicalPoint { x: -4.0, y: 6.0 },
+                        logical_size: LogicalSize {
+                            width: 2.0,
+                            height: 2.0,
+                        },
+                        scale_factor: 2.0,
+                    })
+                })
+        }
+
         fn uses_ephemeral_overlay(&self) -> bool {
             *self
                 .ephemeral_overlay
@@ -2951,7 +3092,7 @@ mod tests {
         fn wake_overlay_for_frame_delivery(
             &self,
             label: &str,
-            _monitor: &MonitorGeometry,
+            _monitor: &DisplayInfo,
         ) -> Result<(), CaptureError> {
             self.operations
                 .lock()
@@ -3050,11 +3191,7 @@ mod tests {
             Ok(())
         }
 
-        fn position_overlay(
-            &self,
-            label: &str,
-            monitor: &MonitorGeometry,
-        ) -> Result<(), CaptureError> {
+        fn position_overlay(&self, label: &str, monitor: &DisplayInfo) -> Result<(), CaptureError> {
             let bounds = PhysicalRect {
                 origin: monitor.physical_origin,
                 size: monitor.physical_size,
@@ -3196,8 +3333,8 @@ mod tests {
     }
 
     struct FakeBackend {
-        monitors: Vec<MonitorGeometry>,
-        frames: Mutex<HashMap<String, NativeFrame>>,
+        displays: Vec<DisplayInfo>,
+        frames: Mutex<HashMap<String, Frame>>,
     }
 
     struct FakeExports {
@@ -3269,7 +3406,7 @@ mod tests {
 
     impl FakeBackend {
         fn one_frame() -> Self {
-            let monitor = MonitorGeometry {
+            let monitor = DisplayInfo {
                 id: "monitor-2".to_string(),
                 physical_origin: PhysicalPoint { x: -8, y: 12 },
                 physical_size: PhysicalSize {
@@ -3284,10 +3421,10 @@ mod tests {
                 scale_factor: 2.0,
             };
             Self {
-                monitors: vec![monitor],
+                displays: vec![monitor],
                 frames: Mutex::new(HashMap::from([(
                     "monitor-2".to_string(),
-                    NativeFrame {
+                    Frame {
                         width: 2,
                         height: 2,
                         stride: 8,
@@ -3298,29 +3435,34 @@ mod tests {
         }
     }
 
-    impl ScreenCaptureBackend for FakeBackend {
-        fn monitors(&self) -> Result<Vec<MonitorGeometry>, CaptureError> {
-            Ok(self.monitors.clone())
+    impl Capture for FakeBackend {
+        fn displays(&self) -> Result<Vec<DisplayInfo>, CaptureError> {
+            Ok(self.displays.clone())
         }
 
-        fn monitor_index_at_cursor(
+        fn display_index_at_cursor(
             &self,
-            _monitors: &[MonitorGeometry],
+            _displays: &[DisplayInfo],
         ) -> Result<usize, CaptureError> {
             Ok(0)
         }
 
-        fn capture_monitor(&self, monitor: &MonitorGeometry) -> Result<NativeFrame, CaptureError> {
+        fn capture_display(
+            &self,
+            display: &DisplayInfo,
+            exclude_window_ids: &[u64],
+        ) -> Result<Frame, CaptureError> {
+            let _ = exclude_window_ids;
             self.frames
                 .lock()
                 .expect("frames lock")
-                .remove(&monitor.id)
+                .remove(&display.id)
                 .ok_or_else(|| CaptureError::new(CaptureErrorCode::CaptureFailed, "missing frame"))
         }
     }
 
     fn captured_frame(session_id: &str) -> CapturedFrame {
-        capture_frame_at_cursor(&FakeBackend::one_frame(), session_id).expect("fixture frame")
+        capture_frame_at_cursor(&FakeBackend::one_frame(), session_id, &[]).expect("fixture frame")
     }
 
     fn target(label: &str) -> CaptureTarget {
@@ -3645,6 +3787,7 @@ mod tests {
                 label,
                 route,
                 visible: false,
+                ..
             })] if label == OVERLAY_WINDOW_LABEL
                 && route == &format!("{OVERLAY_ROUTE}?overlayGeneration=1")
         ));
@@ -4490,6 +4633,132 @@ mod tests {
     }
 
     #[test]
+    fn macos_style_overlay_is_created_at_final_geometry_and_never_repositioned() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        windows.create_overlay_at_final_geometry();
+        let backend = FakeBackend::one_frame();
+
+        let response = runtime
+            .start_composer(
+                "main",
+                "session-macos-ephemeral".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("reserve capture");
+        let generation = response.overlay_generation;
+        let creation = windows
+            .operations()
+            .iter()
+            .find_map(|operation| match operation {
+                WindowOperation::Create(spec) => Some(spec.clone()),
+                _ => None,
+            })
+            .expect("overlay creation");
+        assert_eq!(
+            creation.monitor.as_ref().map(|monitor| monitor.id.as_str()),
+            Some("monitor-2")
+        );
+        assert_eq!(response.phase, NativeCapturePhase::WaitingForOverlay);
+
+        runtime
+            .overlay_ready(
+                OVERLAY_WINDOW_LABEL,
+                generation,
+                CAPTURE_PROTOCOL_VERSION,
+                &windows,
+                &backend,
+            )
+            .expect("overlay becomes ready and captures");
+        assert_eq!(
+            runtime.active_phase().expect("phase"),
+            NativeCapturePhase::FrameAvailable
+        );
+        assert!(
+            !windows
+                .operations()
+                .iter()
+                .any(|operation| matches!(operation, WindowOperation::Position(_, _)))
+        );
+
+        runtime
+            .take_frame(OVERLAY_WINDOW_LABEL, "session-macos-ephemeral", generation)
+            .expect("take captured frame");
+        runtime
+            .frame_presented(
+                OVERLAY_WINDOW_LABEL,
+                "session-macos-ephemeral",
+                generation,
+                &windows,
+            )
+            .expect("present captured frame");
+
+        let operations = windows.operations();
+        assert!(operations.iter().any(|operation| {
+            matches!(operation, WindowOperation::Show(label) if label == OVERLAY_WINDOW_LABEL)
+        }));
+        assert!(
+            !operations
+                .iter()
+                .any(|operation| matches!(operation, WindowOperation::Position(_, _)))
+        );
+
+        runtime
+            .cancel_from_window(
+                OVERLAY_WINDOW_LABEL,
+                "session-macos-ephemeral",
+                Some(generation),
+                &windows,
+            )
+            .expect("cancel session");
+        assert!(
+            windows
+                .deferred_destroys()
+                .iter()
+                .any(|label| label == &overlay_window_label(generation))
+        );
+    }
+
+    #[test]
+    fn frame_from_a_display_other_than_the_overlay_display_fails_closed() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        windows.create_overlay_at_final_geometry();
+        let mut creation_monitor = windows
+            .overlay_creation_monitor()
+            .expect("creation monitor");
+        creation_monitor.id = "different-display".to_string();
+        windows.set_creation_monitor(creation_monitor);
+        let backend = FakeBackend::one_frame();
+
+        let response = runtime
+            .start_composer(
+                "main",
+                "session-wrong-display".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("reserve capture");
+        let error = runtime
+            .overlay_ready(
+                OVERLAY_WINDOW_LABEL,
+                response.overlay_generation,
+                CAPTURE_PROTOCOL_VERSION,
+                &windows,
+                &backend,
+            )
+            .expect_err("frames from another display must not be presented");
+        assert_eq!(error.code, CaptureErrorCode::InvalidMonitor);
+        assert_eq!(
+            runtime.active_phase().expect("phase"),
+            NativeCapturePhase::Idle
+        );
+    }
+
+    #[test]
     fn page_unavailable_restores_and_clears_without_destroying_its_in_flight_webview() {
         let runtime = ScreenCaptureRuntime::new().expect("runtime");
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
@@ -4562,16 +4831,19 @@ mod tests {
             .expect("retire failed bootstrap");
         assert_eq!(runtime.current_overlay_generation().unwrap(), None);
         assert_eq!(
-            runtime.ensure_overlay_native(&windows)
+            runtime
+                .ensure_overlay_native(&windows)
                 .expect_err("destruction must finish before replacement")
                 .code,
             CaptureErrorCode::Busy
         );
 
         windows.destroy_window_as_framework(OVERLAY_WINDOW_LABEL);
-        assert!(!runtime
-            .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
-            .expect("acknowledge retired overlay"));
+        assert!(
+            !runtime
+                .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
+                .expect("acknowledge retired overlay")
+        );
         let replacement = runtime
             .ensure_overlay_native(&windows)
             .expect("create fresh overlay after destruction");

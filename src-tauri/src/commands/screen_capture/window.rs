@@ -9,7 +9,6 @@ use tauri::{PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
 use crate::commands::webview_creation;
 
-use super::contract::{CaptureError, CaptureErrorCode, MonitorGeometry};
 use super::runtime::FRAME_AVAILABLE_EVENT;
 use super::runtime::{
     CaptureWindowPort, CaptureWindowState, DELIVERY_FAILED_EVENT, DeliveryFailedPayload,
@@ -18,12 +17,37 @@ use super::runtime::{
     SESSION_ENDED_EVENT, SESSION_STARTED_EVENT, ScreenCaptureRuntime, SessionEndedPayload,
     SessionStartedPayload, TARGET_UNAVAILABLE_EVENT, TargetUnavailablePayload,
 };
+use crate::capture::{CaptureError, CaptureErrorCode, DisplayInfo};
 
 /// The production implementation of the small synchronous window interface
 /// used by the capture runtime. Keeping Tauri handles out of the coordinator
 /// makes lifecycle and ordering behavior testable without a webview.
 pub struct TauriCaptureWindowPort<R: Runtime> {
     app: AppHandle<R>,
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Vec<u64> {
+    use objc2_app_kit::NSWindow;
+
+    app.webview_windows()
+        .into_iter()
+        .filter(|(label, _)| super::runtime::is_overlay_window_label(label.as_str()))
+        .filter_map(|(_, window)| {
+            let ns_window = window.ns_window().ok()? as *mut NSWindow;
+            let number = unsafe { ns_window.as_ref()? }.windowNumber();
+            u64::try_from(number).ok()
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+) -> Vec<u64> {
+    Vec::new()
 }
 
 impl<R: Runtime> TauriCaptureWindowPort<R> {
@@ -116,7 +140,27 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
         {
             self.create_windows_overlay(spec)?;
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "macos")]
+        {
+            // macOS 26 never renders a WKWebView window that is resized after
+            // creation, so the overlay is born at its final on-screen geometry
+            // and is never repositioned. It is also born VISIBLE: hiding a
+            // freshly created WKWebView and showing it later produces a
+            // zero-pixel compositor on macOS 26 (verified by selftest selfies).
+            let monitor = spec.monitor.as_ref().ok_or_else(|| {
+                CaptureError::new(
+                    CaptureErrorCode::OverlayFailed,
+                    "macOS capture overlay requires its final monitor geometry",
+                )
+            })?;
+            Self::overlay_builder(&self.app, spec)
+                .position(monitor.logical_origin.x, monitor.logical_origin.y)
+                .inner_size(monitor.logical_size.width, monitor.logical_size.height)
+                .visible(true)
+                .build()
+                .map_err(|error| overlay_error("create visible capture overlay", error))?;
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             Self::overlay_builder(&self.app, spec)
                 .inner_size(800.0, 600.0)
@@ -129,11 +173,29 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
     }
 
     fn defers_overlay_position_until_presented(&self) -> bool {
-        cfg!(target_os = "windows")
+        cfg!(any(target_os = "windows", target_os = "macos"))
+    }
+
+    fn creates_overlay_at_final_geometry(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+
+    fn overlay_creation_monitor(&self) -> Result<DisplayInfo, CaptureError> {
+        #[cfg(target_os = "macos")]
+        {
+            crate::capture::macos::monitor_geometry_at_cursor()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Err(CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                "capture overlays are not created at final geometry on this platform",
+            ))
+        }
     }
 
     fn uses_ephemeral_overlay(&self) -> bool {
-        cfg!(target_os = "windows")
+        cfg!(any(target_os = "windows", target_os = "macos"))
     }
 
     fn conceal_overlay_for_capture(&self, label: &str) -> Result<(), CaptureError> {
@@ -154,7 +216,7 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
     fn wake_overlay_for_frame_delivery(
         &self,
         label: &str,
-        monitor: &MonitorGeometry,
+        monitor: &DisplayInfo,
     ) -> Result<(), CaptureError> {
         #[cfg(target_os = "windows")]
         {
@@ -208,10 +270,11 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
     }
 
     fn conceal_overlay(&self, label: &str) -> Result<OverlayConcealment, CaptureError> {
+        log::info!("screen capture concealing overlay label={label}");
         let Some(_window) = self.app.get_webview_window(label) else {
             return Ok(OverlayConcealment::Hidden);
         };
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             let app = self.app.clone();
             let label = label.to_string();
@@ -225,7 +288,7 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
             });
             return Ok(OverlayConcealment::RetirementScheduled);
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             match _window.hide() {
                 Ok(()) => Ok(OverlayConcealment::Hidden),
@@ -248,6 +311,12 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
     }
 
     fn restore_window(&self, label: &str, state: CaptureWindowState) -> Result<(), CaptureError> {
+        log::info!(
+            "screen capture restoring origin label={label} visible={} minimized={} focused={}",
+            state.visible,
+            state.minimized,
+            state.focused
+        );
         let Some(window) = self.app.get_webview_window(label) else {
             // A user may close the origin while capture is active. There is nothing
             // left to restore, so this is a successful terminal cleanup.
@@ -298,7 +367,7 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
             .map_err(|error| overlay_error("focus active capture", error))
     }
 
-    fn position_overlay(&self, label: &str, monitor: &MonitorGeometry) -> Result<(), CaptureError> {
+    fn position_overlay(&self, label: &str, monitor: &DisplayInfo) -> Result<(), CaptureError> {
         let window = self.webview(label)?;
         log::info!(
             "screen capture positioning overlay monitor={} physical=({},{} {}x{}) logical=({},{} {}x{}) scale={}",
@@ -321,7 +390,7 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
         }
         #[cfg(target_os = "windows")]
         {
-            // Tauri monitor snapshots and xcap both report Windows desktop
+            // Tauri monitor snapshots report Windows desktop
             // bounds in physical pixels. Moving a one-pixel bootstrap window
             // with logical coordinates would use its old monitor's DPI and can
             // misplace or mis-size the overlay on mixed-DPI/negative displays.
@@ -344,7 +413,14 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
         }
         #[cfg(target_os = "macos")]
         {
-            return position_macos_overlay(&window, monitor);
+            // macOS overlays are created at their final geometry and are never
+            // repositioned; any post-creation resize leaves the WKWebView
+            // compositor blank on macOS 26.
+            let _ = &window;
+            Err(CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                "macOS capture overlays are created at their final geometry and are never repositioned",
+            ))
         }
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
@@ -516,178 +592,6 @@ fn overlay_error(stage: &str, error: impl std::fmt::Display) -> CaptureError {
     CaptureError::new(CaptureErrorCode::OverlayFailed, format!("{stage}: {error}"))
 }
 
-#[cfg(any(target_os = "macos", test))]
-fn select_macos_screen_index(
-    display_ids: &[u32],
-    selected_display_id: u32,
-) -> Result<usize, CaptureError> {
-    if selected_display_id == 0 {
-        return Err(CaptureError::new(
-            CaptureErrorCode::InvalidMonitor,
-            "the selected macOS display id is invalid",
-        ));
-    }
-    let mut matches = display_ids
-        .iter()
-        .enumerate()
-        .filter(|(_, display_id)| **display_id == selected_display_id)
-        .map(|(index, _)| index);
-    let selected = matches.next().ok_or_else(|| {
-        CaptureError::new(
-            CaptureErrorCode::NoMonitor,
-            "the selected macOS screen disappeared before overlay placement",
-        )
-    })?;
-    if matches.next().is_some() {
-        return Err(CaptureError::new(
-            CaptureErrorCode::InvalidMonitor,
-            "AppKit returned duplicate native display ids",
-        ));
-    }
-    Ok(selected)
-}
-
-#[cfg(target_os = "macos")]
-fn macos_screen_display_id(screen: &objc2_app_kit::NSScreen) -> Result<u32, CaptureError> {
-    use objc2_foundation::{NSNumber, NSString};
-
-    let value = screen
-        .deviceDescription()
-        .objectForKey(&NSString::from_str("NSScreenNumber"))
-        .ok_or_else(|| {
-            CaptureError::new(
-                CaptureErrorCode::InvalidMonitor,
-                "AppKit screen has no native display id",
-            )
-        })?;
-    let number = value.downcast::<NSNumber>().map_err(|_| {
-        CaptureError::new(
-            CaptureErrorCode::InvalidMonitor,
-            "AppKit screen returned an invalid native display id",
-        )
-    })?;
-    let display_id = number.unsignedIntValue();
-    if display_id == 0 {
-        return Err(CaptureError::new(
-            CaptureErrorCode::InvalidMonitor,
-            "AppKit screen returned a zero native display id",
-        ));
-    }
-    Ok(display_id)
-}
-
-#[cfg(target_os = "macos")]
-fn position_macos_overlay_on_main<R: Runtime>(
-    window: &tauri::WebviewWindow<R>,
-    selected_display_id: u32,
-) -> Result<(), CaptureError> {
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::{NSScreen, NSWindow};
-    use objc2_foundation::{NSPoint, NSSize};
-
-    let marker = MainThreadMarker::new().ok_or_else(|| {
-        CaptureError::new(
-            CaptureErrorCode::OverlayFailed,
-            "macOS capture overlay placement did not run on the AppKit thread",
-        )
-    })?;
-    let screens = NSScreen::screens(marker);
-    let mut candidates = Vec::with_capacity(screens.len());
-    for screen in screens {
-        candidates.push((macos_screen_display_id(&screen)?, screen.frame()));
-    }
-    let display_ids: Vec<u32> = candidates
-        .iter()
-        .map(|(display_id, _)| *display_id)
-        .collect();
-    log::info!(
-        "screen capture macOS overlay native display selection requested={} active={:?}",
-        selected_display_id,
-        display_ids
-    );
-    let selected_index = select_macos_screen_index(&display_ids, selected_display_id)?;
-    let selected_frame = candidates[selected_index].1;
-    let pointer = window
-        .ns_window()
-        .map_err(|error| overlay_error("access macOS capture overlay", error))?;
-    // SAFETY: Tauri owns this NSWindow for the lifetime of `window`, and this
-    // function is restricted to AppKit's main thread.
-    let native_window = unsafe { &*pointer.cast::<NSWindow>() };
-    // A single atomic `setFrame:` on a window that was never presented leaves
-    // the WKWebView compositor detached on macOS 26: the window shows up
-    // on-screen with the right frame but the overlay webview renders nothing.
-    // The top-left/content-size pair keeps the compositor attached.
-    native_window.setFrameTopLeftPoint(NSPoint::new(
-        selected_frame.origin.x,
-        selected_frame.origin.y + selected_frame.size.height,
-    ));
-    native_window.setContentSize(NSSize::new(
-        selected_frame.size.width,
-        selected_frame.size.height,
-    ));
-    native_window.setIgnoresMouseEvents(false);
-    native_window.setAcceptsMouseMovedEvents(true);
-
-    let actual_display_id = native_window
-        .screen()
-        .as_deref()
-        .map(macos_screen_display_id)
-        .transpose()?
-        .ok_or_else(|| {
-            CaptureError::new(
-                CaptureErrorCode::InvalidMonitor,
-                "macOS capture overlay has no screen after placement",
-            )
-        })?;
-    if actual_display_id != selected_display_id {
-        return Err(CaptureError::new(
-            CaptureErrorCode::InvalidMonitor,
-            "macOS capture overlay was placed on the wrong display",
-        ));
-    }
-    log::info!(
-        "screen capture macOS overlay placed on native display={actual_display_id} frame=({},{} {}x{})",
-        selected_frame.origin.x,
-        selected_frame.origin.y,
-        selected_frame.size.width,
-        selected_frame.size.height,
-    );
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn position_macos_overlay<R: Runtime>(
-    window: &tauri::WebviewWindow<R>,
-    monitor: &MonitorGeometry,
-) -> Result<(), CaptureError> {
-    use objc2::MainThreadMarker;
-
-    let selected_display_id =
-        super::platform::parse_macos_monitor_id(&monitor.id).ok_or_else(|| {
-            CaptureError::new(
-                CaptureErrorCode::InvalidMonitor,
-                "selected macOS monitor has no native display id",
-            )
-        })?;
-    if MainThreadMarker::new().is_some() {
-        return position_macos_overlay_on_main(window, selected_display_id);
-    }
-
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
-    let main_window = window.clone();
-    window
-        .run_on_main_thread(move || {
-            let _ = sender.send(position_macos_overlay_on_main(
-                &main_window,
-                selected_display_id,
-            ));
-        })
-        .map_err(|error| overlay_error("schedule macOS capture overlay placement", error))?;
-    receiver
-        .recv_timeout(Duration::from_secs(3))
-        .map_err(|error| overlay_error("wait for macOS capture overlay placement", error))?
-}
-
 #[cfg(target_os = "linux")]
 fn wayland_monitor_index(monitor_id: &str) -> Result<i32, CaptureError> {
     let index = monitor_id
@@ -707,7 +611,7 @@ fn wayland_monitor_index(monitor_id: &str) -> Result<i32, CaptureError> {
 #[cfg(target_os = "linux")]
 fn position_wayland_overlay<R: Runtime>(
     window: &tauri::WebviewWindow<R>,
-    monitor: &MonitorGeometry,
+    monitor: &DisplayInfo,
 ) -> Result<(), CaptureError> {
     use gtk::prelude::{GtkWindowExt, MonitorExt, WidgetExt};
 
@@ -755,7 +659,7 @@ mod tests {
             2
         );
         for invalid in [
-            "xcap:2",
+            "test:2",
             "wayland-winit:-1:Display:0:0:1920:1080",
             "wayland-winit:not-a-number:Display:0:0:1920:1080",
         ] {
@@ -764,23 +668,5 @@ mod tests {
                 CaptureErrorCode::InvalidMonitor
             );
         }
-    }
-}
-
-#[cfg(test)]
-mod macos_screen_tests {
-    use super::*;
-
-    #[test]
-    fn macos_overlay_selects_the_exact_native_display_without_coordinate_matching() {
-        assert_eq!(select_macos_screen_index(&[41, 7], 7).unwrap(), 1);
-        assert_eq!(
-            select_macos_screen_index(&[41], 7).unwrap_err().code,
-            CaptureErrorCode::NoMonitor
-        );
-        assert_eq!(
-            select_macos_screen_index(&[41, 7, 7], 7).unwrap_err().code,
-            CaptureErrorCode::InvalidMonitor
-        );
     }
 }

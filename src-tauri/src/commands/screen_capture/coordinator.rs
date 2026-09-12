@@ -795,10 +795,10 @@ fn unauthorized_error(detail: &str) -> CaptureError {
 #[cfg(test)]
 mod tests {
     use super::{CaptureCallerRole, CaptureCoordinator, TerminalOutcome};
+    use crate::capture::{DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize};
     use crate::commands::screen_capture::contract::{
         CaptureError, CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureResultDescriptor,
-        CaptureTarget, CaptureTriggerKind, CapturedFrame, LogicalPoint, LogicalSize,
-        MonitorGeometry, NativeCapturePhase, PhysicalPoint, PhysicalSize,
+        CaptureTarget, CaptureTriggerKind, CapturedFrame, NativeCapturePhase,
     };
 
     const OVERLAY: &str = "screen-capture-overlay";
@@ -831,7 +831,7 @@ mod tests {
     fn frame(session_id: &str) -> CapturedFrame {
         CapturedFrame::new(
             session_id,
-            MonitorGeometry {
+            DisplayInfo {
                 id: "main-monitor".to_string(),
                 physical_origin: PhysicalPoint { x: 0, y: 0 },
                 physical_size: PhysicalSize {

@@ -1,120 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-pub const MAX_RAW_FRAME_BYTES: usize = 256 * 1024 * 1024;
+use crate::capture::{DisplayInfo, MAX_RAW_FRAME_BYTES};
+
+pub use crate::capture::{CaptureError, CaptureErrorCode};
+
 pub const MAX_PNG_RESULT_BYTES: usize = 160 * 1024 * 1024;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PhysicalPoint {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PhysicalSize {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(target_os = "macos", allow(dead_code))]
-pub struct PhysicalRect {
-    pub origin: PhysicalPoint,
-    pub size: PhysicalSize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CssPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CssSize {
-    pub width: f64,
-    pub height: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CssRect {
-    pub origin: CssPoint,
-    pub size: CssSize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogicalPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogicalSize {
-    pub width: f64,
-    pub height: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorGeometry {
-    pub id: String,
-    pub physical_origin: PhysicalPoint,
-    pub physical_size: PhysicalSize,
-    pub logical_origin: LogicalPoint,
-    pub logical_size: LogicalSize,
-    pub scale_factor: f64,
-}
-
-impl MonitorGeometry {
-    pub fn validate(&self) -> Result<(), CaptureError> {
-        let logical_values = [
-            self.logical_origin.x,
-            self.logical_origin.y,
-            self.logical_size.width,
-            self.logical_size.height,
-            self.scale_factor,
-        ];
-        if self.id.trim().is_empty()
-            || self.physical_size.width == 0
-            || self.physical_size.height == 0
-            || logical_values.iter().any(|value| !value.is_finite())
-            || self.logical_size.width <= 0.0
-            || self.logical_size.height <= 0.0
-            || self.scale_factor <= 0.0
-        {
-            return Err(CaptureError::new(
-                CaptureErrorCode::InvalidMonitor,
-                "monitor geometry is incomplete or invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    #[cfg_attr(target_os = "macos", allow(dead_code))]
-    fn contains(&self, point: PhysicalPoint) -> bool {
-        let left = i64::from(self.physical_origin.x);
-        let top = i64::from(self.physical_origin.y);
-        let right = left + i64::from(self.physical_size.width);
-        let bottom = top + i64::from(self.physical_size.height);
-        let x = i64::from(point.x);
-        let y = i64::from(point.y);
-        x >= left && x < right && y >= top && y < bottom
-    }
-}
-
-#[cfg_attr(target_os = "macos", allow(dead_code))]
-pub fn select_monitor_at(
-    monitors: &[MonitorGeometry],
-    point: PhysicalPoint,
-) -> Option<&MonitorGeometry> {
-    monitors.iter().find(|monitor| monitor.contains(point))
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -126,7 +16,7 @@ pub enum PixelFormat {
 #[serde(rename_all = "camelCase")]
 pub struct CapturedFrameDescriptor {
     pub session_id: String,
-    pub monitor: MonitorGeometry,
+    pub monitor: DisplayInfo,
     pub width: u32,
     pub height: u32,
     pub stride: u32,
@@ -143,7 +33,7 @@ pub struct CapturedFrame {
 impl CapturedFrame {
     pub fn new(
         session_id: impl Into<String>,
-        monitor: MonitorGeometry,
+        monitor: DisplayInfo,
         width: u32,
         height: u32,
         stride: u32,
@@ -343,49 +233,3 @@ pub struct CaptureResultSubmission {
     pub height: u32,
     pub bytes: Vec<u8>,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CaptureErrorCode {
-    Busy,
-    PermissionDenied,
-    NoMonitor,
-    MonitorSelectionUnavailable,
-    InvalidMonitor,
-    CaptureFailed,
-    InvalidFrame,
-    FrameTooLarge,
-    OverlayFailed,
-    InvalidSession,
-    InvalidPhase,
-    UnauthorizedCaller,
-    TargetUnavailable,
-    EncodeFailed,
-    ClipboardFailed,
-    SaveFailed,
-    TimedOut,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CaptureError {
-    pub code: CaptureErrorCode,
-    pub detail: String,
-}
-
-impl CaptureError {
-    pub fn new(code: CaptureErrorCode, detail: impl Into<String>) -> Self {
-        Self {
-            code,
-            detail: detail.into(),
-        }
-    }
-}
-
-impl std::fmt::Display for CaptureError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.detail)
-    }
-}
-
-impl std::error::Error for CaptureError {}

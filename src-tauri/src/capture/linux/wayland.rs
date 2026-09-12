@@ -20,14 +20,10 @@ use ashpd::desktop::{
 };
 use pipewire as pw;
 use pw::{properties::properties, spa};
-use tauri::{AppHandle, Runtime};
 
-use super::{
-    backend::NativeFrame,
-    contract::{
-        CaptureError, CaptureErrorCode, LogicalPoint, LogicalSize, MAX_RAW_FRAME_BYTES,
-        MonitorGeometry, PhysicalPoint, PhysicalSize,
-    },
+use crate::capture::{
+    CaptureError, CaptureErrorCode, DisplayInfo, Frame, LogicalPoint, LogicalSize,
+    MAX_RAW_FRAME_BYTES, PhysicalPoint, PhysicalSize, with_native_acquisition_lease,
 };
 
 const PIPEWIRE_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -60,7 +56,7 @@ pub struct PortalStreamMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct TauriMonitorSnapshot {
+struct MonitorSnapshot {
     name: Option<String>,
     physical_origin: (i32, i32),
     physical_size: (u32, u32),
@@ -78,34 +74,12 @@ struct PipeWireUserData {
     format: Option<NegotiatedFormat>,
 }
 
-/// Enumerate monitor candidates through Tauri/winit only. In particular this
-/// path must never instantiate xcap, whose Linux enumeration requires XCB and
-/// is unavailable in a genuinely pure-Wayland process.
-pub fn available_monitor_geometries<R: Runtime>(
-    app: &AppHandle<R>,
-) -> Result<Vec<MonitorGeometry>, CaptureError> {
-    let snapshots = app
-        .available_monitors()
-        .map_err(|_| {
-            CaptureError::new(
-                CaptureErrorCode::NoMonitor,
-                "could not enumerate monitors for the desktop portal",
-            )
-        })?
-        .into_iter()
-        .map(|monitor| TauriMonitorSnapshot {
-            name: monitor.name().cloned(),
-            physical_origin: (monitor.position().x, monitor.position().y),
-            physical_size: (monitor.size().width, monitor.size().height),
-            scale_factor: monitor.scale_factor(),
-        })
-        .collect();
-    monitor_geometries_from_snapshots(snapshots)
-}
-
-fn monitor_geometries_from_snapshots(
-    snapshots: Vec<TauriMonitorSnapshot>,
-) -> Result<Vec<MonitorGeometry>, CaptureError> {
+/// Build display candidates from windowing-stack monitor snapshots injected by
+/// the app layer. A pure-Wayland process has no global enumeration protocol,
+/// so the compositor-facing windowing stack is the only source.
+pub(crate) fn display_geometries_from_snapshots(
+    snapshots: Vec<MonitorSnapshot>,
+) -> Result<Vec<DisplayInfo>, CaptureError> {
     if snapshots.is_empty() {
         return Err(CaptureError::new(
             CaptureErrorCode::NoMonitor,
@@ -128,7 +102,7 @@ fn monitor_geometries_from_snapshots(
                 ));
             }
             let name = snapshot.name.as_deref().unwrap_or("unnamed");
-            let geometry = MonitorGeometry {
+            let geometry = DisplayInfo {
                 id: format!(
                     "wayland-winit:{index}:{name}:{}:{}:{}:{}",
                     snapshot.physical_origin.0,
@@ -163,7 +137,7 @@ fn monitor_geometries_from_snapshots(
 /// Convert a mapped SPA buffer into the capture subsystem's single canonical
 /// pixel layout. Chunk bounds are validated independently of the backing map;
 /// padding never crosses into the returned tight RGBA buffer.
-pub fn decode_mapped_frame(frame: MappedFrame<'_>) -> Result<NativeFrame, CaptureError> {
+pub fn decode_mapped_frame(frame: MappedFrame<'_>) -> Result<Frame, CaptureError> {
     if frame.corrupted || frame.width == 0 || frame.height == 0 || frame.stride == 0 {
         return Err(invalid_pipewire_frame());
     }
@@ -245,7 +219,7 @@ pub fn decode_mapped_frame(frame: MappedFrame<'_>) -> Result<NativeFrame, Captur
         return Err(invalid_pipewire_frame());
     }
 
-    Ok(NativeFrame {
+    Ok(Frame {
         width: frame.width,
         height: frame.height,
         stride: u32::try_from(row_bytes).map_err(|_| frame_too_large())?,
@@ -257,10 +231,10 @@ pub fn decode_mapped_frame(frame: MappedFrame<'_>) -> Result<NativeFrame, Captur
 /// Older portals may omit both fields; that fallback is accepted solely when
 /// the decoded physical frame size has exactly one local monitor candidate.
 pub fn match_portal_monitor(
-    monitors: &[MonitorGeometry],
+    monitors: &[DisplayInfo],
     metadata: PortalStreamMetadata,
     frame_size: (u32, u32),
-) -> Result<MonitorGeometry, CaptureError> {
+) -> Result<DisplayInfo, CaptureError> {
     if monitors.is_empty() {
         return Err(CaptureError::new(
             CaptureErrorCode::NoMonitor,
@@ -268,7 +242,7 @@ pub fn match_portal_monitor(
         ));
     }
 
-    let candidates: Vec<&MonitorGeometry> = match (metadata.position, metadata.size) {
+    let candidates: Vec<&DisplayInfo> = match (metadata.position, metadata.size) {
         (Some(position), Some(size)) if size.0 > 0 && size.1 > 0 => monitors
             .iter()
             .filter(|monitor| {
@@ -305,10 +279,10 @@ pub fn match_portal_monitor(
 /// Dropping this future at any await point after session creation schedules a
 /// best-effort session close through `PortalSessionGuard::drop`.
 pub async fn capture_monitor_via_portal(
-    monitors: Vec<MonitorGeometry>,
+    monitors: Vec<DisplayInfo>,
     interaction_timeout: Duration,
     frame_timeout: Duration,
-) -> Result<(MonitorGeometry, NativeFrame), CaptureError> {
+) -> Result<(DisplayInfo, Frame), CaptureError> {
     if interaction_timeout.is_zero() || frame_timeout.is_zero() {
         return Err(capture_timeout());
     }
@@ -338,9 +312,9 @@ pub async fn capture_monitor_via_portal(
 async fn capture_from_portal_session(
     proxy: &Screencast,
     session: &Session<Screencast>,
-    monitors: Vec<MonitorGeometry>,
+    monitors: Vec<DisplayInfo>,
     frame_timeout: Duration,
-) -> Result<(MonitorGeometry, NativeFrame), CaptureError> {
+) -> Result<(DisplayInfo, Frame), CaptureError> {
     proxy
         .select_sources(
             session,
@@ -382,8 +356,8 @@ async fn capture_from_portal_session(
         .open_pipe_wire_remote(session, Default::default())
         .await
         .map_err(portal_capture_error)?;
-    let frame = tauri::async_runtime::spawn_blocking(move || {
-        super::backend::with_native_acquisition_lease(|| {
+    let frame = tokio::task::spawn_blocking(move || {
+        crate::capture::with_native_acquisition_lease(|| {
             acquire_one_pipewire_frame(node_id, remote, frame_timeout)
         })
     })
@@ -404,7 +378,7 @@ fn acquire_one_pipewire_frame(
     node_id: u32,
     remote: OwnedFd,
     timeout: Duration,
-) -> Result<NativeFrame, CaptureError> {
+) -> Result<Frame, CaptureError> {
     let mainloop = pw::main_loop::MainLoopBox::new(None).map_err(|_| pipewire_capture_error())?;
     let context = pw::context::ContextBox::new(mainloop.loop_(), None)
         .map_err(|_| pipewire_capture_error())?;
@@ -422,7 +396,7 @@ fn acquire_one_pipewire_frame(
     )
     .map_err(|_| pipewire_capture_error())?;
 
-    type SharedResult = Rc<RefCell<Option<Result<NativeFrame, CaptureError>>>>;
+    type SharedResult = Rc<RefCell<Option<Result<Frame, CaptureError>>>>;
     let result: SharedResult = Rc::new(RefCell::new(None));
     let state_result = result.clone();
     let process_result = result.clone();
@@ -690,8 +664,8 @@ fn cpu_mappable_pipewire_data(
 }
 
 fn store_first_result(
-    destination: &Rc<RefCell<Option<Result<NativeFrame, CaptureError>>>>,
-    result: Result<NativeFrame, CaptureError>,
+    destination: &Rc<RefCell<Option<Result<Frame, CaptureError>>>>,
+    result: Result<Frame, CaptureError>,
 ) {
     let mut destination = destination.borrow_mut();
     if destination.is_none() {
@@ -728,7 +702,7 @@ impl Drop for PortalSessionGuard {
         let Some(session) = self.session.take() else {
             return;
         };
-        tauri::async_runtime::spawn(async move {
+        tokio::spawn(async move {
             let _ = session.close().await;
         });
     }
@@ -795,8 +769,8 @@ fn capture_timeout() -> CaptureError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::screen_capture::contract::{
-        CaptureErrorCode, LogicalPoint, LogicalSize, MonitorGeometry, PhysicalPoint, PhysicalSize,
+    use crate::capture::{
+        CaptureErrorCode, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize,
     };
 
     fn monitor(
@@ -806,8 +780,8 @@ mod tests {
         logical_origin: (f64, f64),
         logical_size: (f64, f64),
         scale_factor: f64,
-    ) -> MonitorGeometry {
-        MonitorGeometry {
+    ) -> DisplayInfo {
+        DisplayInfo {
             id: id.to_string(),
             physical_origin: PhysicalPoint {
                 x: physical_origin.0,
@@ -830,8 +804,8 @@ mod tests {
     }
 
     #[test]
-    fn tauri_snapshot_conversion_preserves_physical_logical_and_scale_spaces() {
-        let converted = monitor_geometries_from_snapshots(vec![TauriMonitorSnapshot {
+    fn snapshot_conversion_preserves_physical_logical_and_scale_spaces() {
+        let converted = display_geometries_from_snapshots(vec![MonitorSnapshot {
             name: Some("Left panel".to_string()),
             physical_origin: (-2560, 120),
             physical_size: (2560, 1440),
@@ -868,9 +842,9 @@ mod tests {
     }
 
     #[test]
-    fn empty_tauri_monitor_snapshot_fails_before_opening_the_portal() {
+    fn empty_monitor_snapshot_fails_before_opening_the_portal() {
         assert_eq!(
-            monitor_geometries_from_snapshots(Vec::new())
+            display_geometries_from_snapshots(Vec::new())
                 .expect_err("empty monitor enumeration")
                 .code,
             CaptureErrorCode::NoMonitor
@@ -880,20 +854,20 @@ mod tests {
     #[test]
     fn converted_ambiguous_candidates_still_fail_closed() {
         let snapshots = vec![
-            TauriMonitorSnapshot {
+            MonitorSnapshot {
                 name: Some("same".to_string()),
                 physical_origin: (0, 0),
                 physical_size: (1920, 1080),
                 scale_factor: 1.0,
             },
-            TauriMonitorSnapshot {
+            MonitorSnapshot {
                 name: Some("same".to_string()),
                 physical_origin: (0, 0),
                 physical_size: (1920, 1080),
                 scale_factor: 1.0,
             },
         ];
-        let monitors = monitor_geometries_from_snapshots(snapshots).expect("valid snapshots");
+        let monitors = display_geometries_from_snapshots(snapshots).expect("valid snapshots");
         assert_ne!(
             monitors[0].id, monitors[1].id,
             "snapshot IDs remain distinct"

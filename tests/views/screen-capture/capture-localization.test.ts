@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localization'
+import type { CaptureMessages } from '@/views/screen-capture/capture-localization'
 import { CAPTURE_LOCALE_CODES, captureMessagesForLanguages } from '@/views/screen-capture/capture-localization'
 import bootstrapSource from '@/views/screen-capture/bootstrap.ts?raw'
 import localizationSource from '@/views/screen-capture/capture-localization.ts?raw'
@@ -28,13 +28,13 @@ vi.mock('@/views/image-editor/pixi/PixiEditorRenderer', () => ({
   },
 }))
 
-const localeModules = import.meta.glob<CaptureLocaleModule>('@/locales/*/screen-capture.ts', {
+const localeModules = import.meta.glob<CaptureMessages>('@/views/screen-capture/locales/*.ts', {
   eager: true,
   import: 'default',
 })
 
 function localeCode(path: string): string {
-  const match = path.match(/\/locales\/([^/]+)\/screen-capture\.ts$/)
+  const match = path.match(/\/locales\/([^/]+)\.ts$/)
   if (!match) throw new Error(`unexpected capture locale path: ${path}`)
   return match[1]!
 }
