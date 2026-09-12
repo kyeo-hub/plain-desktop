@@ -31,27 +31,40 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, Str
     if !resp.status().is_success() {
         return Err(format!("GitHub API returned HTTP {}", resp.status()));
     }
-    let body = resp.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {e}"))?;
     let json: serde_json::Value =
         serde_json::from_str(&body).map_err(|e| format!("Invalid response from GitHub: {e}"))?;
 
     let latest_tag = json.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
     let latest_version = extract_version(latest_tag).unwrap_or_default();
     if latest_version.is_empty() {
-        return Err(format!("No valid version found in release tag: {latest_tag}"));
+        return Err(format!(
+            "No valid version found in release tag: {latest_tag}"
+        ));
     }
     let has_update = compare_versions(&latest_version, &current) == std::cmp::Ordering::Greater;
     Ok(UpdateCheck {
         current_version: current.to_string(),
         latest_version,
         has_update,
-        release_name: json.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        release_name: json
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         release_url: json
             .get("html_url")
             .and_then(|v| v.as_str())
             .unwrap_or(GITHUB_REPO)
             .to_string(),
-        published_at: json.get("published_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        published_at: json
+            .get("published_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
     })
 }
 

@@ -1,9 +1,9 @@
 use super::nearby_discover_manager::NearbyDiscoverManager;
-use plain_rs::{base64_decode, chacha20_encrypt, ed25519_sign};
 use crate::local::db::{ChatDb, DPeer};
 use crate::local::graphql::{WS_PEER_STATUS_UPDATED, WsEvent};
 use crate::prefs::AppIdentity;
 use futures_util::{SinkExt, StreamExt};
+use plain_rs::{base64_decode, chacha20_encrypt, ed25519_sign};
 use std::collections::HashMap;
 use std::sync::{
     Arc, Mutex, RwLock,
@@ -157,7 +157,10 @@ impl PeerStatusManager {
 
         let refreshed_peer = self.inner.db.get_peer_by_id(&peer.id).unwrap_or(peer);
         if refreshed_peer.updated_at == updated_at_before {
-            log::debug!("peer status: no discover reply peer={} — rescheduling", refreshed_peer.id);
+            log::debug!(
+                "peer status: no discover reply peer={} — rescheduling",
+                refreshed_peer.id
+            );
             self.schedule_reconnect(refreshed_peer.id.clone());
             return;
         }
@@ -233,7 +236,10 @@ impl PeerStatusManager {
             {
                 Ok(tls) => tls,
                 Err(err) => {
-                    log::error!("peer status: tls init failed peer={} err={err}", peer_id_for_task);
+                    log::error!(
+                        "peer status: tls init failed peer={} err={err}",
+                        peer_id_for_task
+                    );
                     manager.connection_closed(&peer_id_for_task, task_id);
                     return;
                 }
@@ -266,7 +272,10 @@ impl PeerStatusManager {
                     }
                     Ok(Message::Close(_)) => break,
                     Err(err) => {
-                        log::debug!("peer status: socket failed peer={} err={err}", peer_id_for_task);
+                        log::debug!(
+                            "peer status: socket failed peer={} err={err}",
+                            peer_id_for_task
+                        );
                         break;
                     }
                     _ => {}
@@ -326,7 +335,10 @@ impl PeerStatusManager {
             state.pending_reconnect = true;
             state.reconnect_attempts = state.reconnect_attempts.saturating_add(1);
             let shift = std::cmp::min(state.reconnect_attempts.saturating_sub(1), 6);
-            std::cmp::min(MAX_RECONNECT_DELAY_MS, INITIAL_RECONNECT_DELAY_MS * (1u64 << shift))
+            std::cmp::min(
+                MAX_RECONNECT_DELAY_MS,
+                INITIAL_RECONNECT_DELAY_MS * (1u64 << shift),
+            )
         };
         let manager = self.clone();
         std::thread::spawn(move || {

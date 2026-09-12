@@ -3,8 +3,8 @@
 //! The incoming side (decryption, signature verification, mutation
 //! dispatch) lives in `crate::local::peer_graphql`.
 
-use plain_rs::{xchacha_decrypt_raw, xchacha_encrypt_raw, ed25519_sign, ed25519_verify};
 use crate::local::db::DPeer;
+use plain_rs::{ed25519_sign, ed25519_verify, xchacha_decrypt_raw, xchacha_encrypt_raw};
 use serde_json::json;
 
 fn reqwest_error_kind(err: &reqwest::Error) -> &'static str {

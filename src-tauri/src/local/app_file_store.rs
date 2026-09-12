@@ -346,7 +346,11 @@ fn ensure_canonical_exists(real_path: &Path, src: &Path) -> std::io::Result<()> 
 /// caller is expected to rename / delete the file as part of its own
 /// atomicity strategy.
 #[allow(dead_code)]
-pub async fn write_temp_async(dir: &Path, prefix: &str, ext: &str) -> std::io::Result<(PathBuf, tokio::fs::File)> {
+pub async fn write_temp_async(
+    dir: &Path,
+    prefix: &str,
+    ext: &str,
+) -> std::io::Result<(PathBuf, tokio::fs::File)> {
     tokio::fs::create_dir_all(dir).await?;
     let name = format!("{prefix}_{}.{}", std::process::id(), ext);
     let path = dir.join(name);
@@ -423,7 +427,10 @@ mod tests {
     #[test]
     fn ext_from_name_prefers_filename_extension() {
         assert_eq!(ext_from_name("local.properties", ""), "properties");
-        assert_eq!(ext_from_name("local.properties", "application/octet-stream"), "properties");
+        assert_eq!(
+            ext_from_name("local.properties", "application/octet-stream"),
+            "properties"
+        );
         assert_eq!(ext_from_name("Photo.JPG", ""), "jpg"); // lowercased
         assert_eq!(ext_from_name("archive.tar.gz", ""), "gz");
         // No extension in the name — falls back to the MIME table.
@@ -445,7 +452,11 @@ mod tests {
         // Browsers send no Content-Type for `.properties` files.
         let result = import_file(&db, &dir, &src, "local.properties", "").unwrap();
         assert_eq!(result.mime_type, DEFAULT_MIME);
-        assert!(result.fid_suffix.ends_with(".properties"), "{}", result.fid_suffix);
+        assert!(
+            result.fid_suffix.ends_with(".properties"),
+            "{}",
+            result.fid_suffix
+        );
         assert!(result.real_path.exists());
         assert_eq!(result.real_path, dest_path(&dir, &result.id, "properties"));
         assert!(!result.reused);

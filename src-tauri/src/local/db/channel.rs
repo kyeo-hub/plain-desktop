@@ -1,7 +1,7 @@
 use rusqlite::params;
 
-use super::utils::now_iso;
 use super::ChatDb;
+use super::utils::now_iso;
 use crate::local::channel::messages::decode_members;
 use crate::local::enums::ChannelStatus;
 use plain_rs::short_uuid::short_uuid;
@@ -60,7 +60,11 @@ impl DChannel {
     /// 1. Owner is preferred if online.
     /// 2. Fall back to the smallest online joined member id (including self).
     /// 3. Returns `None` if no eligible member is online.
-    pub fn elect_leader(&self, online_ids: &std::collections::HashSet<String>, _my_id: &str) -> Option<String> {
+    pub fn elect_leader(
+        &self,
+        online_ids: &std::collections::HashSet<String>,
+        _my_id: &str,
+    ) -> Option<String> {
         if online_ids.is_empty() {
             return None;
         }
@@ -231,9 +235,7 @@ impl ChatDb {
 
     pub fn any_channel_has_member(&self, peer_id: &str) -> bool {
         let conn = self.0.lock().unwrap();
-        let mut stmt = match conn.prepare(
-            "SELECT members FROM chat_channels WHERE status=?",
-        ) {
+        let mut stmt = match conn.prepare("SELECT members FROM chat_channels WHERE status=?") {
             Ok(s) => s,
             Err(_) => return false,
         };
@@ -278,8 +280,8 @@ mod tests {
 
     #[test]
     fn get_channels_filters_by_status() {
-        let db = ChatDb::open(&unique_tmp_dir("filter-status").join("local_chat.db"))
-            .expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("filter-status").join("local_chat.db")).expect("open db");
         seed_channel(&db, "c1", ChannelStatus::Joined);
         seed_channel(&db, "c2", ChannelStatus::Joined);
         seed_channel(&db, "c3", ChannelStatus::Left);
@@ -310,8 +312,8 @@ mod tests {
 
     #[test]
     fn any_channel_has_member_returns_true_when_member_found() {
-        let db = ChatDb::open(&unique_tmp_dir("has-member").join("local_chat.db"))
-            .expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("has-member").join("local_chat.db")).expect("open db");
         let mut ch = DChannel::new("ch1", "owner");
         ch.members = r#"[{"id":"peer1","status":"JOINED"}]"#.to_string();
         ch.status = ChannelStatus::Joined;

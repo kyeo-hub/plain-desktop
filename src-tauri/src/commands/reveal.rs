@@ -30,7 +30,11 @@ pub fn reveal_chat_file(app: AppHandle, uri: String) -> Result<(), String> {
 
 /// Save a chat file to a user-chosen destination via the native save dialog.
 #[tauri::command]
-pub async fn save_chat_file_as(app: AppHandle, uri: String, name: Option<String>) -> Result<(), String> {
+pub async fn save_chat_file_as(
+    app: AppHandle,
+    uri: String,
+    name: Option<String>,
+) -> Result<(), String> {
     let src = resolve_existing(&app, &uri)?;
     let default_name = name
         .map(|n| n.trim().to_string())
@@ -54,9 +58,17 @@ pub async fn save_chat_file_as(app: AppHandle, uri: String, name: Option<String>
 /// save dialog (WKWebView cannot download blobs, so the webview hands the
 /// already-fetched content over instead).
 #[tauri::command]
-pub async fn save_text_file_as(app: AppHandle, name: String, contents: String) -> Result<(), String> {
+pub async fn save_text_file_as(
+    app: AppHandle,
+    name: String,
+    contents: String,
+) -> Result<(), String> {
     let default_name = name.trim();
-    let default_name = if default_name.is_empty() { "file.txt" } else { default_name };
+    let default_name = if default_name.is_empty() {
+        "file.txt"
+    } else {
+        default_name
+    };
     let target = app
         .dialog()
         .file()

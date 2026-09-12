@@ -17,26 +17,26 @@
 use super::chat_cacher::ChatCacher;
 use super::db::ChatDb;
 use super::graphql::{
-    build_schema, load_key_cache, new_channel_key_cache, new_peer_key_cache, refresh_peer_key_cache,
-    AppCtx, LocalSchema, WsEvent,
+    AppCtx, LocalSchema, WsEvent, build_schema, load_key_cache, new_channel_key_cache,
+    new_peer_key_cache, refresh_peer_key_cache,
 };
-use super::peer_graphql::{build_schema as build_peer_schema, PeerSchema};
+use super::peer_graphql::{PeerSchema, build_schema as build_peer_schema};
 use super::tls::{build_acceptor, ensure_cert};
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::prefs::AppIdentity;
 use std::net::TcpListener as StdTcpListener;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::{AppHandle, Manager};
 use tokio::sync::broadcast;
 use tokio_rustls::TlsAcceptor;
 
 mod file_server;
 mod http_handler;
+mod plain_conn;
 mod proxy_file;
 pub(super) mod response;
-mod plain_conn;
 mod tls_conn;
 mod upload;
 pub(crate) mod uri;
@@ -173,7 +173,9 @@ impl LocalServerState {
             .local_addr()
             .expect("local server addr")
             .port();
-        http_listener.set_nonblocking(true).expect("set_nonblocking");
+        http_listener
+            .set_nonblocking(true)
+            .expect("set_nonblocking");
 
         let https_listener = match bind_listener_fallback(https_port, &HTTPS_PORTS) {
             Ok(l) => l,
@@ -188,10 +190,7 @@ impl LocalServerState {
                 return Err(format!("HTTPS port {https_port} bind failed: {e}"));
             }
         };
-        let new_https_port = https_listener
-            .local_addr()
-            .expect("https addr")
-            .port();
+        let new_https_port = https_listener.local_addr().expect("https addr").port();
         https_listener
             .set_nonblocking(true)
             .expect("set_nonblocking https");
@@ -366,16 +365,15 @@ const HTTPS_PORTS: [u16; 10] = [8043, 8143, 8243, 8343, 8443, 8543, 8643, 8743, 
 /// Bind the configured port; on an address conflict, walk `candidates` starting
 /// from the configured port and bind the first free one. If none are available,
 /// ask the OS for a free port so startup can continue.
-fn bind_listener_fallback(
-    preferred: u16,
-    candidates: &[u16],
-) -> std::io::Result<StdTcpListener> {
+fn bind_listener_fallback(preferred: u16, candidates: &[u16]) -> std::io::Result<StdTcpListener> {
     let preferred_index = candidates.iter().position(|&p| p == preferred);
     if preferred_index.is_none() {
         match bind_listener(preferred) {
             Ok(listener) => return Ok(listener),
             Err(e) if retryable_bind_error(&e) => {
-                log::warn!("local_server: port {preferred} is unavailable, trying fixed candidates");
+                log::warn!(
+                    "local_server: port {preferred} is unavailable, trying fixed candidates"
+                );
             }
             Err(e) => return Err(e),
         }

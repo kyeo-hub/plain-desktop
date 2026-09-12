@@ -2,10 +2,8 @@ use async_graphql::{Context, Object};
 use serde_json::json;
 use std::sync::Arc;
 
-use super::super::context::{AppCtx, WsEvent, WS_DEVICE_NAME_UPDATED};
-use super::types::{
-    App, BatteryInfo, DesktopDeviceInfo, DeviceInfo, DevicePlatform, Sim,
-};
+use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
+use super::types::{App, BatteryInfo, DesktopDeviceInfo, DeviceInfo, DevicePlatform, Sim};
 #[cfg(target_os = "macos")]
 use super::types::{BatteryHealth, BatteryPlugged, BatteryStatus};
 use crate::local::enums::{AppChannelType, DeviceType};

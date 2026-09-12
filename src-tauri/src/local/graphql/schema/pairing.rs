@@ -83,11 +83,7 @@ impl PairingMutation {
     /// Initiate pairing with a discovered device. POSTs a PAIR_REQUEST to the
     /// target's `POST /nearby` endpoint. Completion (success / fail / timeout /
     /// cancel) is reported via `WS_PAIRING_*` push events.
-    async fn pair_device(
-        &self,
-        ctx: &Context<'_>,
-        input: PairingDeviceInput,
-    ) -> GqlResult<bool> {
+    async fn pair_device(&self, ctx: &Context<'_>, input: PairingDeviceInput) -> GqlResult<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         // The Rust PairingManager.start_pairing only needs (id, name, ip,
         // port). The other input fields (ips, version, platform, last_seen)
@@ -110,11 +106,7 @@ impl PairingMutation {
     /// Cancel an in-progress pairing we initiated. The remote peer receives
     /// a PAIR_CANCEL via `POST /nearby`; completion is reported via
     /// `WS_PAIRING_CANCELLED`.
-    async fn cancel_pairing(
-        &self,
-        ctx: &Context<'_>,
-        device_id: String,
-    ) -> GqlResult<bool> {
+    async fn cancel_pairing(&self, ctx: &Context<'_>, device_id: String) -> GqlResult<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.pairing_manager.cancel_pairing(&device_id);
         Ok(true)

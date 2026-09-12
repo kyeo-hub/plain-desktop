@@ -92,7 +92,10 @@ mod tests {
     fn resolve_fid_without_ext() {
         let dir = std::path::Path::new("/data");
         let p = resolve_uri("fid:abcdef0123456789", dir);
-        assert_eq!(p, std::path::PathBuf::from("/data/files/ab/cd/abcdef0123456789"));
+        assert_eq!(
+            p,
+            std::path::PathBuf::from("/data/files/ab/cd/abcdef0123456789")
+        );
     }
 
     #[test]

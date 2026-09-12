@@ -29,12 +29,10 @@
 
 use std::str::FromStr;
 
-use plain_rs::{base64_encode, ed25519_sign};
 use crate::local::db::{ChatDb, DChannel, DPeer};
-use crate::local::enums::{
-    ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType,
-};
+use crate::local::enums::{ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType};
 use crate::local::graphql::context::PeerKeyCache;
+use plain_rs::{base64_encode, ed25519_sign};
 
 use super::messages::*;
 
@@ -432,8 +430,8 @@ pub fn encode_channel_key(raw: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use plain_rs::{base64_encode, ed25519_generate};
     use crate::local::enums::{DeviceType, MemberStatus};
+    use plain_rs::{base64_encode, ed25519_generate};
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -452,8 +450,8 @@ mod tests {
     /// with "no owner memberPeerInfo". Mirrors plain-app `getPeersAsync`.
     #[test]
     fn build_member_peers_includes_owner_when_owner_is_member() {
-        let db = ChatDb::open(&unique_tmp_dir("owner-member").join("local_chat.db"))
-            .expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("owner-member").join("local_chat.db")).expect("open db");
         let (kp_bytes, _vk_bytes) = ed25519_generate();
         let client_id = "owner-1";
         let device_name = "Desktop";
@@ -481,7 +479,13 @@ mod tests {
         let (kp_bytes, _vk_bytes) = ed25519_generate();
         let client_id = "owner-1";
         let member_id = "member-1";
-        db.upsert_peer(&DPeer::new(member_id, "Pixel", "192.168.1.5", 8443, DeviceType::Phone));
+        db.upsert_peer(&DPeer::new(
+            member_id,
+            "Pixel",
+            "192.168.1.5",
+            8443,
+            DeviceType::Phone,
+        ));
 
         let mut channel = DChannel::new("Channel", client_id);
         channel.members = serde_json::json!([
@@ -508,7 +512,13 @@ mod tests {
         let (kp_bytes, _vk_bytes) = ed25519_generate();
         let client_id = "owner-1";
         let member_id = "member-1";
-        db.upsert_peer(&DPeer::new(member_id, "Pixel", "192.168.1.5", 8443, DeviceType::Phone));
+        db.upsert_peer(&DPeer::new(
+            member_id,
+            "Pixel",
+            "192.168.1.5",
+            8443,
+            DeviceType::Phone,
+        ));
 
         // Owner is deliberately NOT in members — only the invitee is.
         let mut channel = DChannel::new("Channel", client_id);

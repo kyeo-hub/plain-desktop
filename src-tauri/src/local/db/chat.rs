@@ -1,7 +1,7 @@
 use rusqlite::params;
 
-use super::utils::{now_iso, short_id};
 use super::ChatDb;
+use super::utils::{now_iso, short_id};
 use crate::local::enums::ChatStatus;
 
 #[derive(Clone, Debug)]
@@ -248,7 +248,12 @@ impl ChatDb {
                 updated_at: row.get(8)?,
             })
         }) {
-            Ok(iter) => iter.filter_map(|r| r.map_err(|e| log::error!("[chat] get_all_latest_chats row error: {e}")).ok()).collect(),
+            Ok(iter) => iter
+                .filter_map(|r| {
+                    r.map_err(|e| log::error!("[chat] get_all_latest_chats row error: {e}"))
+                        .ok()
+                })
+                .collect(),
             Err(e) => {
                 log::error!("[chat] get_all_latest_chats query_map error: {e}");
                 vec![]
@@ -276,10 +281,8 @@ impl ChatDb {
         let conn = self.0.lock().unwrap();
         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let sql = format!("DELETE FROM chats WHERE id IN ({placeholders})");
-        let params: Vec<&dyn rusqlite::ToSql> = ids
-            .iter()
-            .map(|id| id as &dyn rusqlite::ToSql)
-            .collect();
+        let params: Vec<&dyn rusqlite::ToSql> =
+            ids.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
         let _ = conn.execute(&sql, params.as_slice());
     }
 
@@ -367,14 +370,17 @@ mod tests {
         seed_chat(&db, "c", "me", "peer2", "");
         seed_chat(&db, "d", "me", "peer1", "ch1");
 
-        let ids: Vec<String> = db.get_chats_by_peer("peer1").into_iter().map(|c| c.id).collect();
+        let ids: Vec<String> = db
+            .get_chats_by_peer("peer1")
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
         assert_eq!(ids, vec!["a".to_string(), "b".to_string()]);
     }
 
     #[test]
     fn delete_chats_by_peer_preserves_channel_chats() {
-        let db =
-            ChatDb::open(&unique_tmp_dir("peer-del").join("local_chat.db")).expect("open db");
+        let db = ChatDb::open(&unique_tmp_dir("peer-del").join("local_chat.db")).expect("open db");
         seed_chat(&db, "a", "me", "peer1", "");
         seed_chat(&db, "b", "peer1", "me", "");
         seed_chat(&db, "c", "me", "peer1", "ch1");
@@ -410,31 +416,39 @@ mod tests {
 
     #[test]
     fn get_chats_by_channel_returns_only_that_channel() {
-        let db =
-            ChatDb::open(&unique_tmp_dir("chan-get").join("local_chat.db")).expect("open db");
+        let db = ChatDb::open(&unique_tmp_dir("chan-get").join("local_chat.db")).expect("open db");
         seed_chat(&db, "a", "me", "", "ch1");
         seed_chat(&db, "b", "me", "", "ch2");
         seed_chat(&db, "c", "me", "", "ch1");
 
-        let ids: Vec<String> =
-            db.get_chats_by_channel("ch1").into_iter().map(|c| c.id).collect();
+        let ids: Vec<String> = db
+            .get_chats_by_channel("ch1")
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
         assert_eq!(ids, vec!["a".to_string(), "c".to_string()]);
     }
 
     #[test]
     fn get_all_latest_chats_returns_local_chat() {
-        let db = ChatDb::open(&unique_tmp_dir("latest-local").join("local_chat.db")).expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("latest-local").join("local_chat.db")).expect("open db");
         seed_chat(&db, "a", "me", "local", "");
 
         let latest = db.get_all_latest_chats();
-        assert_eq!(latest.len(), 1, "should return 1 latest chat, got {latest:?}");
+        assert_eq!(
+            latest.len(),
+            1,
+            "should return 1 latest chat, got {latest:?}"
+        );
         assert_eq!(latest[0].from_id, "me");
         assert_eq!(latest[0].to_id, "local");
     }
 
     #[test]
     fn get_all_latest_chats_returns_peer_and_channel() {
-        let db = ChatDb::open(&unique_tmp_dir("latest-mixed").join("local_chat.db")).expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("latest-mixed").join("local_chat.db")).expect("open db");
         seed_chat(&db, "a", "me", "local", "");
         seed_chat(&db, "b", "me", "peer1", "");
         seed_chat(&db, "c", "peer1", "me", "");
@@ -442,12 +456,17 @@ mod tests {
 
         let latest = db.get_all_latest_chats();
         // 4 conversations: me↔local, me→peer1, peer1→me, ch1
-        assert_eq!(latest.len(), 4, "should return 4 latest chats, got {latest:?}");
+        assert_eq!(
+            latest.len(),
+            4,
+            "should return 4 latest chats, got {latest:?}"
+        );
     }
 
     #[test]
     fn get_all_latest_chats_returns_empty_when_no_chats() {
-        let db = ChatDb::open(&unique_tmp_dir("latest-empty").join("local_chat.db")).expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("latest-empty").join("local_chat.db")).expect("open db");
         let latest = db.get_all_latest_chats();
         assert!(latest.is_empty());
     }

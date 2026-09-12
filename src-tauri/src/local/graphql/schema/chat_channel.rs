@@ -2,15 +2,14 @@ use async_graphql::{Context, Error as GqlError, Object, Result as GqlResult};
 use std::sync::Arc;
 
 use super::super::context::{
-    channels_updated_payload, load_key_cache, refresh_peer_key_cache, AppCtx, WsEvent, WS_CHANNELS_UPDATED,
+    AppCtx, WS_CHANNELS_UPDATED, WsEvent, channels_updated_payload, load_key_cache,
+    refresh_peer_key_cache,
 };
 use super::types::ChatChannel;
-use plain_rs::{base64_decode, base64_encode, random_bytes};
-use crate::local::channel::messages::{
-    decode_members, encode_members, has_member, ChannelMember,
-};
-use crate::local::db::{now_iso, DChannel};
+use crate::local::channel::messages::{ChannelMember, decode_members, encode_members, has_member};
+use crate::local::db::{DChannel, now_iso};
 use crate::local::enums::ChannelStatus;
+use plain_rs::{base64_decode, base64_encode, random_bytes};
 
 #[derive(Default)]
 pub struct ChatChannelMutation;
@@ -51,10 +50,9 @@ impl ChatChannelMutation {
         name: String,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        let mut ch = c
-            .db
-            .get_channel_by_id(&id)
-            .ok_or_else(|| gql_err("Channel not found"))?;
+        let mut ch =
+            c.db.get_channel_by_id(&id)
+                .ok_or_else(|| gql_err("Channel not found"))?;
         ch.name = name.trim().to_string();
         ch.version += 1;
         ch.updated_at = now_iso();
@@ -143,10 +141,9 @@ impl ChatChannelMutation {
         peer_id: String,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        let mut ch = c
-            .db
-            .get_channel_by_id(&id)
-            .ok_or_else(|| gql_err("Channel not found"))?;
+        let mut ch =
+            c.db.get_channel_by_id(&id)
+                .ok_or_else(|| gql_err("Channel not found"))?;
         if ch.owner != c.identity.client_id {
             return Err(gql_err("Only owner can add members"));
         }
@@ -186,10 +183,9 @@ impl ChatChannelMutation {
         peer_id: String,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        let mut ch = c
-            .db
-            .get_channel_by_id(&id)
-            .ok_or_else(|| gql_err("Channel not found"))?;
+        let mut ch =
+            c.db.get_channel_by_id(&id)
+                .ok_or_else(|| gql_err("Channel not found"))?;
         if ch.owner != c.identity.client_id {
             return Err(gql_err("Only owner can remove members"));
         }
@@ -197,10 +193,8 @@ impl ChatChannelMutation {
         if !has_member(&members, &peer_id) {
             return Err(gql_err("Not a member"));
         }
-        let new_members: Vec<ChannelMember> = members
-            .into_iter()
-            .filter(|m| m.id != peer_id)
-            .collect();
+        let new_members: Vec<ChannelMember> =
+            members.into_iter().filter(|m| m.id != peer_id).collect();
         ch.members = encode_members(&new_members);
         ch.version += 1;
         ch.updated_at = now_iso();
@@ -236,14 +230,12 @@ impl ChatChannelMutation {
 
     async fn accept_chat_channel_invite(&self, ctx: &Context<'_>, id: String) -> GqlResult<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        let ch = c
-            .db
-            .get_channel_by_id(&id)
-            .ok_or_else(|| gql_err("Channel not found"))?;
-        let owner_peer = c
-            .db
-            .get_peer_by_id(&ch.owner)
-            .ok_or_else(|| gql_err("Owner peer not found"))?;
+        let ch =
+            c.db.get_channel_by_id(&id)
+                .ok_or_else(|| gql_err("Channel not found"))?;
+        let owner_peer =
+            c.db.get_peer_by_id(&ch.owner)
+                .ok_or_else(|| gql_err("Owner peer not found"))?;
         let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
         let channel_key = base64_decode(&ch.key);
         load_key_cache(&c.db, &c.peer_key_cache, &c.channel_key_cache);
@@ -294,12 +286,7 @@ impl ChatChannelMutation {
     /// both buttons. Returns the `accept` flag verbatim so the
     /// modal's `onDone` handler can read the chosen action back from
     /// the mutation result.
-    async fn respond_channel_invite(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-        accept: bool,
-    ) -> bool {
+    async fn respond_channel_invite(&self, ctx: &Context<'_>, id: String, accept: bool) -> bool {
         if accept {
             // Reuse the accept path — `accept_chat_channel_invite`
             // already returns `Ok(true)` on success.
@@ -324,7 +311,9 @@ impl ChatChannelMutation {
         // same wire payload, so we keep this here purely so the
         // GraphQL schema still validates; the implementation is a
         // no-op.
-        log::warn!("[chat_channel] main-schema channelSystemMessage called — use /peer_graphql instead");
+        log::warn!(
+            "[chat_channel] main-schema channelSystemMessage called — use /peer_graphql instead"
+        );
         false
     }
 }

@@ -5,10 +5,10 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use super::super::graphql::context::AppCtx;
 use super::response::respond;
 use super::uri::{parse_decrypted_id, resolve_uri};
-use plain_rs::xchacha_decrypt;
 use plain_rs::base64_decode;
 use plain_rs::mime::mime_from_ext;
 use plain_rs::query::parse_query;
+use plain_rs::xchacha_decrypt;
 
 /// Serve a file via the local server's `/fs` endpoint.
 ///
@@ -95,16 +95,16 @@ pub(super) async fn serve_file<W: AsyncWrite + Unpin>(
     if let (Some(off), Some(len)) = (
         params.get("offset").and_then(|s| s.parse::<u64>().ok()),
         params.get("length").and_then(|s| s.parse::<u64>().ok()),
-    )
-        && len > 0 {
-            if off >= file_size {
-                respond(wr, 404, "Not Found", b"", "text/plain").await;
-                return;
-            }
-            let clamped = len.min(file_size - off);
-            serve_range_raw(wr, &resolved, off, clamped).await;
+    ) && len > 0
+    {
+        if off >= file_size {
+            respond(wr, 404, "Not Found", b"", "text/plain").await;
             return;
         }
+        let clamped = len.min(file_size - off);
+        serve_range_raw(wr, &resolved, off, clamped).await;
+        return;
+    }
 
     // 7. Display filename + MIME + Content-Disposition (RFC 5987).
     //    plain-app URL-encodes the filename for both the legacy
@@ -122,8 +122,7 @@ pub(super) async fn serve_file<W: AsyncWrite + Unpin>(
     let mime = mime_from_ext(&display_name);
     let is_download = params.get("dl").map(|s| s.as_str()) == Some("1");
     let disposition_kind = if is_download { "attachment" } else { "inline" };
-    let disposition =
-        plain_rs::utils::http::content_disposition(disposition_kind, &display_name);
+    let disposition = plain_rs::utils::http::content_disposition(disposition_kind, &display_name);
 
     // 8. HTTP `Range` header (RFC 7233). Browsers use this for media
     //    seeking; plain-app gets it implicitly via Ktor's `respondFile`,

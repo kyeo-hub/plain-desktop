@@ -109,7 +109,8 @@ fn parse_probe(stdout: &str) -> Option<FirewallProbe> {
 fn write_temp_script(name: &str, content: &str) -> Result<std::path::PathBuf, String> {
     let path = std::env::temp_dir().join(name);
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
-    file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| e.to_string())?;
     Ok(path)
 }
 
@@ -147,7 +148,10 @@ pub fn probe_status() -> Result<MdnsFirewallStatus, String> {
         let script_path = script.to_string_lossy().into_owned();
         let out = run_powershell_hidden(&["-WindowStyle", "Hidden", "-File", &script_path])?;
         if !out.status.success() {
-            return Err(format!("firewall probe exited {}", out.status.code().unwrap_or(-1)));
+            return Err(format!(
+                "firewall probe exited {}",
+                out.status.code().unwrap_or(-1)
+            ));
         }
         let probe = parse_probe(&String::from_utf8_lossy(&out.stdout))
             .ok_or_else(|| "failed to parse firewall probe output".to_string())?;
@@ -197,7 +201,10 @@ mod tests {
 
     #[test]
     fn ps_quote_escapes_single_quotes() {
-        assert_eq!(ps_quote("C:\\Program Files\\PlainApp.exe"), "'C:\\Program Files\\PlainApp.exe'");
+        assert_eq!(
+            ps_quote("C:\\Program Files\\PlainApp.exe"),
+            "'C:\\Program Files\\PlainApp.exe'"
+        );
         assert_eq!(ps_quote("it's"), "'it''s'");
     }
 

@@ -20,8 +20,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::local::app_file_store;
-use crate::local::graphql::context::{AppCtx, WsEvent, WS_UPLOAD_MERGE_RESULT};
-
+use crate::local::graphql::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
 
 #[derive(Default)]
 pub struct FileUploadQuery;
@@ -211,7 +210,9 @@ fn merge_chunks_to(
                 .map_err(|e| respond(format!("merge write: {e}")))?;
         }
     }
-    out_f.flush().map_err(|e| respond(format!("merge flush: {e}")))?;
+    out_f
+        .flush()
+        .map_err(|e| respond(format!("merge flush: {e}")))?;
     Ok(())
 }
 
@@ -250,9 +251,7 @@ fn perform_merge(
         return Err(e);
     }
 
-    let merged_size = std::fs::metadata(&temp_merge)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let merged_size = std::fs::metadata(&temp_merge).map(|m| m.len()).unwrap_or(0);
     if merged_size != expected_size {
         let _ = std::fs::remove_file(&temp_merge);
         return Err(respond(format!(
@@ -342,10 +341,8 @@ mod tests {
     use super::*;
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "plain_merge_test_{tag}_{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("plain_merge_test_{tag}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -409,7 +406,10 @@ mod tests {
         assert!(guard.len() > MERGE_JOBS_CAP);
         guard.retain(|_, state| matches!(state, MergeJobState::Merging));
         assert_eq!(guard.len(), 1);
-        assert!(matches!(guard.get("merging-1"), Some(MergeJobState::Merging)));
+        assert!(matches!(
+            guard.get("merging-1"),
+            Some(MergeJobState::Merging)
+        ));
         guard.clear();
     }
 }

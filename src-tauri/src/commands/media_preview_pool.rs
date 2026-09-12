@@ -122,8 +122,7 @@ pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
         .min_inner_size(900.0, 600.0);
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    match webview_creation::serialized(|| win.build())
-    {
+    match webview_creation::serialized(|| win.build()) {
         Ok(win) => {
             crate::commands::window::cascade_from_focused(app, &win);
             if let Ok(mut g) = state.warm_label.lock() {
