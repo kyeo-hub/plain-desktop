@@ -88,6 +88,7 @@ export default {
     audios: 'Audio',
     logout: 'Uitloggen',
     notifications: 'Meldingen',
+    clipboard: 'Klembord',
   },
   quick_actions: 'Snelle acties',
   page_title: {

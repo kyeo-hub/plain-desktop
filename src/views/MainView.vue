@@ -82,6 +82,15 @@
                 >
                   <i-material-symbols:notifications-outline-rounded />
                 </v-icon-button>
+                <v-icon-button
+                  v-tooltip="$t('header_actions.clipboard')"
+                  class="q-action"
+                  toggle
+                  :class="{ selected: store.quick === 'clipboard' }"
+                  @click="toggleQuick('clipboard')"
+                >
+                  <i-material-symbols:content-paste />
+                </v-icon-button>
                 <v-icon-button id="quick-audio" v-tooltip="$t('playlist')" class="q-action" toggle :class="{ selected: store.quick === 'audio' }" @click="toggleQuick('audio')">
                   <i-material-symbols:queue-music-rounded />
                 </v-icon-button>
@@ -112,6 +121,7 @@
             <audio-player v-show="store.quick === 'audio'" />
             <p-notifications v-if="!localMode" v-show="store.quick === 'notification'" />
             <local-notifications v-if="localMode" v-show="store.quick === 'notification'" />
+            <p-clipboard v-show="store.quick === 'clipboard'" />
             <pomodoro-timer v-show="store.quick === 'pomodoro'" />
             <bookmark-list v-show="store.quick === 'bookmark'" />
           </div>
@@ -126,6 +136,7 @@ import { inject } from 'vue'
 import HeaderSearch from '@/components/HeaderSearch.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
 import LocalNotifications from '@/views/notifications/LocalNotifications.vue'
+import PClipboard from '@/views/clipboard/PClipboard.vue'
 import { AppChannelType } from '@/lib/status'
 import { useMainView } from '@/hooks/main-view'
 

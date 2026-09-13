@@ -616,6 +616,12 @@ export const replyNotificationGQL = `
   }
 `
 
+export const cancelClipboardGQL = `
+  mutation cancelClipboard($ids: [ID!]!) {
+    cancelClipboard(ids: $ids)
+  }
+`
+
 export const updateScreenMirrorQualityGQL = `
   mutation updateScreenMirrorQuality($mode: ScreenMirrorMode!) {
     updateScreenMirrorQuality(mode: $mode)

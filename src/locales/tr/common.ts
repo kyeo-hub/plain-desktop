@@ -88,6 +88,7 @@ export default {
     audios: 'Sesler',
     logout: 'Çıkış yap',
     notifications: 'Bildirimler',
+    clipboard: 'Pano',
   },
   quick_actions: 'Hızlı Eylemler',
   page_title: {

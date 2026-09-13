@@ -115,6 +115,7 @@ export default {
     audios: 'Audio',
     logout: 'Logout',
     notifications: 'Notifications',
+    clipboard: 'Clipboard',
   },
   quick_actions: 'Quick Actions',
   page_title: {

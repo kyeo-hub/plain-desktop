@@ -90,6 +90,7 @@ export default {
     audios: '音訊',
     logout: '登出',
     notifications: '通知',
+    clipboard: '剪貼簿',
   },
   quick_actions: '快速操作',
   page_title: {

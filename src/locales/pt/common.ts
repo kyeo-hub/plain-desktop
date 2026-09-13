@@ -88,6 +88,7 @@ export default {
     audios: 'Áudio',
     logout: 'Sair',
     notifications: 'Notificações',
+    clipboard: 'Área de transferência',
   },
   quick_actions: 'Ações rápidas',
   page_title: {

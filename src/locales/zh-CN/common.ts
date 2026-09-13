@@ -106,6 +106,7 @@ export default {
     audios: '音频',
     logout: '退出登录',
     notifications: '通知',
+    clipboard: '剪贴板',
   },
   quick_actions: '快捷操作',
   page_title: {

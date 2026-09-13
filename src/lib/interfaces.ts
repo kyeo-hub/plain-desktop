@@ -335,6 +335,15 @@ export interface INotification extends IData {
   replyActions: string[]
 }
 
+export interface IClipboard extends IData {
+  id: string
+  text: string
+  source: string
+  label: string
+  sensitive: boolean
+  createdAt: string
+}
+
 export interface IPackage extends IData {
   id: string
   name: string

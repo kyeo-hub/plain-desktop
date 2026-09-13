@@ -88,6 +88,7 @@ export default {
     audios: 'Âm thanh',
     logout: 'Đăng xuất',
     notifications: 'Thông báo',
+    clipboard: 'Bảng nhớ tạm',
   },
   quick_actions: 'Hành động nhanh',
   page_title: {

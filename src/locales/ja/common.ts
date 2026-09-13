@@ -89,6 +89,7 @@ export default {
     audios: 'オーディオ',
     logout: 'ログアウト',
     notifications: '通知',
+    clipboard: 'クリップボード',
   },
   quick_actions: 'クイックアクション',
   page_title: {

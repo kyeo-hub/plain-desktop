@@ -88,6 +88,7 @@ export default {
     audios: 'ஆடியோ',
     logout: 'வெளியேறு',
     notifications: 'அறிவிப்புகள்',
+    clipboard: 'பிடிப்புப்பலகை',
   },
   quick_actions: 'விரைவு செயல்கள்',
   page_title: {

@@ -89,6 +89,7 @@ export default {
     audios: 'Аудио',
     logout: 'Выйти',
     notifications: 'Уведомления',
+    clipboard: 'Буфер обмена',
   },
   quick_actions: 'Быстрые действия',
   page_title: {

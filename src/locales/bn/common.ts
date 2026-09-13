@@ -91,6 +91,7 @@ export default {
     audios: 'অডিও',
     logout: 'লগআউট',
     notifications: 'বিজ্ঞপ্তি',
+    clipboard: 'ক্লিপবোর্ড',
   },
   quick_actions: 'দ্রুত কার্যক্রম',
   page_title: {

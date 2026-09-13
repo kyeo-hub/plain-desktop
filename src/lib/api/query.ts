@@ -20,6 +20,7 @@ import {
   packageFragment,
   tagSubFragment,
   notificationFragment,
+  clipboardFragment,
   deviceInfoFragment,
   bookmarkFragment,
   bookmarkGroupFragment,
@@ -738,6 +739,16 @@ export const notificationsGQL = `
     }
   }
   ${notificationFragment}
+`
+
+export const clipboardGQL = `
+  query clipboard($offset: Int!, $limit: Int!, $query: String!) {
+    clipboard(offset: $offset, limit: $limit, query: $query) {
+      ...ClipboardFragment
+    }
+    clipboardCount(query: $query)
+  }
+  ${clipboardFragment}
 `
 
 export const deviceInfoGQL = `

@@ -89,6 +89,7 @@ export default {
     audios: 'Audio',
     logout: 'Se déconnecter',
     notifications: 'Notifications',
+    clipboard: 'Presse-papiers',
   },
   quick_actions: 'Actions rapides',
   page_title: {

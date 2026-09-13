@@ -363,6 +363,17 @@ export const notificationFragment = `
   }
 `
 
+export const clipboardFragment = `
+  fragment ClipboardFragment on Clipboard {
+    id
+    text
+    source
+    label
+    sensitive
+    createdAt
+  }
+`
+
 export const deviceInfoFragment = `
   fragment DeviceInfoFragment on DeviceInfo {
     name
