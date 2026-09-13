@@ -121,7 +121,8 @@
             <audio-player v-show="store.quick === 'audio'" />
             <p-notifications v-if="!localMode" v-show="store.quick === 'notification'" />
             <local-notifications v-if="localMode" v-show="store.quick === 'notification'" />
-            <p-clipboard v-show="store.quick === 'clipboard'" />
+            <p-clipboard v-if="!localMode" v-show="store.quick === 'clipboard'" />
+            <local-clipboard v-if="localMode" v-show="store.quick === 'clipboard'" />
             <pomodoro-timer v-show="store.quick === 'pomodoro'" />
             <bookmark-list v-show="store.quick === 'bookmark'" />
           </div>
@@ -137,6 +138,7 @@ import HeaderSearch from '@/components/HeaderSearch.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
 import LocalNotifications from '@/views/notifications/LocalNotifications.vue'
 import PClipboard from '@/views/clipboard/PClipboard.vue'
+import LocalClipboard from '@/views/clipboard/LocalClipboard.vue'
 import { AppChannelType } from '@/lib/status'
 import { useMainView } from '@/hooks/main-view'
 

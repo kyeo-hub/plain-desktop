@@ -72,7 +72,7 @@ const {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  .ntf-group:first-child {
+  .peer-group:first-child {
     margin-top: 16px;
   }
 }

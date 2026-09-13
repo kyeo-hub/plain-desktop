@@ -2,10 +2,11 @@
   <article class="item clipboard-item">
     <div class="clip-main">
       <div class="row1">
-        <span class="name">{{ item.label || item.source }}</span>
-        <time v-tooltip="formatDateTimeFull(item.createdAt)" class="nowrap">{{ formatTimeAgo(createdAt) }}</time>
-        <button v-tooltip="$t('copy')" class="btn-icon del" @click.stop="$emit('copy', item)">
-          <i-material-symbols:content-copy-outline-rounded />
+        <span v-if="hasName" class="name">{{ item.label || item.source }}</span>
+        <time v-tooltip="formatDateTimeFull(item.createdAt)" class="nowrap" :class="{ 'time-solo': !hasName }">{{ formatTimeAgo(createdAt) }}</time>
+        <button v-tooltip="$t('copy')" class="btn-icon copy" :class="{ copied }" @click.stop="copy">
+          <i-material-symbols:check-rounded v-if="copied" class="copied-ico" />
+          <i-material-symbols:content-copy-outline-rounded v-else />
         </button>
         <button v-tooltip="$t('delete')" class="btn-icon del" @click.stop="$emit('delete', item)">
           <i-material-symbols:close-rounded />
@@ -17,21 +18,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { formatDateTimeFull, formatTimeAgo } from '@/lib/format'
+import { copyTextToClipboard } from '@/lib/clipboard'
 import type { IClipboard } from '@/lib/interfaces'
 
 const props = defineProps<{ item: IClipboard }>()
 
 defineEmits<{
-  copy: [item: IClipboard]
   delete: [item: IClipboard]
 }>()
+
+const copied = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+
+const hasName = computed(() => !!(props.item.label || props.item.source))
 
 const createdAt = computed(() => {
   const v = props.item.createdAt
   return /^\d+$/.test(v ?? '') ? new Date(Number(v)).toISOString() : v
 })
+
+async function copy() {
+  const ok = await copyTextToClipboard(props.item.text)
+  if (!ok) return
+  copied.value = true
+  clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => (copied.value = false), 1500)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -81,6 +95,11 @@ const createdAt = computed(() => {
     flex-shrink: 0;
   }
 
+  .time-solo {
+    margin-right: auto;
+  }
+
+  .copy,
   .del {
     width: 28px;
     height: 28px;
@@ -94,6 +113,22 @@ const createdAt = computed(() => {
     }
   }
 
+  .copy {
+    color: inherit;
+    transition: color 0.15s ease;
+
+    &.copied {
+      opacity: 1;
+      pointer-events: auto;
+      color: var(--md-sys-color-primary);
+
+      .copied-ico {
+        animation: clip-copied-pop 0.3s ease;
+      }
+    }
+  }
+
+  &:hover .copy,
   &:hover .del {
     opacity: 1;
     pointer-events: auto;
@@ -115,10 +150,25 @@ const createdAt = computed(() => {
   }
 
   @media (hover: none) {
+    .copy,
     .del {
       opacity: 1;
       pointer-events: auto;
     }
+  }
+}
+
+@keyframes clip-copied-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 </style>

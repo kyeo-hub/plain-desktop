@@ -17,7 +17,6 @@
           v-for="item in items"
           :key="item.id"
           :item="item"
-          @copy="copyEntry"
           @delete="deleteItem"
         />
       </section>
@@ -38,16 +37,12 @@
 <script setup lang="ts">
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import ClipboardItem from '@/components/ClipboardItem.vue'
-import { copyTextToClipboard } from '@/lib/clipboard'
-import type { IClipboard } from '@/lib/interfaces'
 import { useMainStore } from '@/stores/main'
 import { useClipboardData } from './clipboard'
 
 const store = useMainStore()
 
 const { items, total, page, limit, loading, gotoPage, onChangePageSize, deleteItem } = useClipboardData()
-
-const copyEntry = (item: IClipboard) => copyTextToClipboard(item.text)
 </script>
 
 <style lang="scss" scoped>
