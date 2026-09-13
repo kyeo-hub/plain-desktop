@@ -200,7 +200,10 @@ export default defineConfig(({ mode }) => {
     },
     projects: [
       {
-        plugins: [vue()],
+        // `unit` compiles real src modules, whose top-level
+        // `~icons/<collection>/<name>` imports need the icons plugin —
+        // template-only `<i-…>` tags survive without it, module imports don't.
+        plugins: [vue(), Icons()],
         resolve: {
           alias: {
             '@': path.resolve(__dirname, 'src'),
@@ -232,6 +235,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       {
+        plugins: [Icons()],
         resolve: {
           alias: {
             '@': path.resolve(__dirname, 'src'),

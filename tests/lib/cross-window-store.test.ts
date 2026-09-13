@@ -67,9 +67,10 @@ describe('cross-window-store', () => {
     peer.cws.subscribeForTest('kv-test', (patch) => received.push(patch as any))
 
     pubStore.$patch({ a: 1, b: 99 })
-    await new Promise((r) => setTimeout(r, 0))
-
-    expect(received).toEqual([{ a: 1 }])
+    // BroadcastChannel message events land on the task queue with no
+    // ordering guarantee against the timer below — poll for the expected
+    // delivery instead of waiting a single tick.
+    await vi.waitFor(() => expect(received).toEqual([{ a: 1 }]))
   })
 
   it('does not publish when only non-syncKeys mutate', async () => {
@@ -126,8 +127,7 @@ describe('cross-window-store', () => {
     sub.cws.subscribeForTest('same-test', (patch) => received.push(patch))
 
     pub.cws.publishForTest('same-test', { z: 3 }, 'device-1')
-    await new Promise((r) => setTimeout(r, 0))
-    expect(received).toEqual([{ z: 3 }])
+    await vi.waitFor(() => expect(received).toEqual([{ z: 3 }]))
   })
 
   it('delivers messages between local-mode windows sharing the desktop id', async () => {
@@ -138,7 +138,6 @@ describe('cross-window-store', () => {
     sub.cws.subscribeForTest('local-test', (patch) => received.push(patch))
 
     pub.cws.publishForTest('local-test', { local: true }, 'desktop-1')
-    await new Promise((r) => setTimeout(r, 0))
-    expect(received).toEqual([{ local: true }])
+    await vi.waitFor(() => expect(received).toEqual([{ local: true }]))
   })
 })
