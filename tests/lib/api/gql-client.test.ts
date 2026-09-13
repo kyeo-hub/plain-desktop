@@ -233,10 +233,9 @@ describe('gqlFetch', () => {
   // as an unhandled error and aborts the rest of the file. We've
   // covered the GqlError shape on 401 in
   // `unit (chromium) tests/lib/api/gql-client.test.ts` under local mode
-  // (where the reload branch is skipped). If you want to re-enable the
+  // (where the reload branch is skipped). If you want to test the
   // non-local path, run this file under `vitest --project=cws` (Node
   // environment) instead of Browser Mode.
-  it.skip('throws GqlError with status 401 on 401 response (non-local reload path)', () => {})
 
   it('throws GqlError with status 403 on 403 response', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ status: 403, arrayBuffer: async () => new ArrayBuffer(0) })))

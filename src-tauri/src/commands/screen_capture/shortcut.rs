@@ -329,7 +329,7 @@ pub async fn register_wayland_portal_capture_shortcut<R: Runtime>(
         .create_session(CreateSessionOptions::default())
         .await
         .map_err(portal_error)?;
-    let preferred = to_portal_trigger(configured_capture_accelerator(&app));
+    let preferred = to_portal_trigger(configured_capture_accelerator(&app).as_str());
     let shortcut = NewShortcut::new("plain-screen-capture", "Open Plain screen capture")
         .preferred_trigger(preferred.as_deref());
     let response = proxy

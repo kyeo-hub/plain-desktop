@@ -23,7 +23,7 @@ use pw::{properties::properties, spa};
 
 use crate::capture::{
     CaptureError, CaptureErrorCode, DisplayInfo, Frame, LogicalPoint, LogicalSize,
-    MAX_RAW_FRAME_BYTES, PhysicalPoint, PhysicalSize, with_native_acquisition_lease,
+    MAX_RAW_FRAME_BYTES, PhysicalPoint, PhysicalSize,
 };
 
 const PIPEWIRE_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -56,11 +56,11 @@ pub struct PortalStreamMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct MonitorSnapshot {
-    name: Option<String>,
-    physical_origin: (i32, i32),
-    physical_size: (u32, u32),
-    scale_factor: f64,
+pub(crate) struct MonitorSnapshot {
+    pub(crate) name: Option<String>,
+    pub(crate) physical_origin: (i32, i32),
+    pub(crate) physical_size: (u32, u32),
+    pub(crate) scale_factor: f64,
 }
 
 #[derive(Debug, Clone, Copy)]

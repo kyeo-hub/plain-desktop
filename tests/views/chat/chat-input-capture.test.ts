@@ -97,7 +97,13 @@ describe('ChatInput screen capture action', () => {
       global: {
         mocks: { $t: (key: string) => key },
         directives: { tooltip: () => {} },
-        components: { VDropdown: { template: '<div><slot name="trigger" /></div>' } },
+        components: {
+          VDropdown: {
+            setup(_props: unknown, { slots }: any) {
+              return () => h('div', [slots.trigger?.(), slots.default?.()])
+            },
+          },
+        },
         stubs: {
           CaptureShortcutModal: true,
           EmojiTextField: {
