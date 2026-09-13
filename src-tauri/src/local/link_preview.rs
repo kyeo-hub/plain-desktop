@@ -17,7 +17,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use plain_rs::utils::image_dimensions;
 
@@ -229,22 +229,29 @@ async fn fetch_link_preview(db: &ChatDb, data_dir: &Path, url: &str) -> Value {
         image_url = reqwest::Url::parse(url)
             .ok()
             .filter(|u| !u.host_str().unwrap_or("").is_empty())
-            .map(|u| format!("{}://{}/favicon.ico", u.scheme(), u.host_str().unwrap_or("")));
+            .map(|u| {
+                format!(
+                    "{}://{}/favicon.ico",
+                    u.scheme(),
+                    u.host_str().unwrap_or("")
+                )
+            });
     }
 
     let mut image_local_path: Option<String> = None;
     let mut image_width = 0;
     let mut image_height = 0;
     if let Some(active_url) = image_url.as_deref()
-        && is_valid_url(active_url) {
-            let (path, w, h) = download_image_with_size(db, data_dir, active_url).await;
-            image_local_path = path;
-            image_width = w;
-            image_height = h;
-            if image_local_path.is_none() && active_url.ends_with("/favicon.ico") {
-                image_url = None;
-            }
+        && is_valid_url(active_url)
+    {
+        let (path, w, h) = download_image_with_size(db, data_dir, active_url).await;
+        image_local_path = path;
+        image_width = w;
+        image_height = h;
+        if image_local_path.is_none() && active_url.ends_with("/favicon.ico") {
+            image_url = None;
         }
+    }
 
     json!({
         "url": url,
@@ -307,7 +314,8 @@ async fn download_image_with_size(
         .to_lowercase();
     let is_favicon_file = image_url.contains("favicon") || image_url.ends_with(".ico");
     let is_image_ctype = content_type.starts_with("image/")
-        || (is_favicon_file && (content_type.contains("icon") || content_type.contains("octet-stream")));
+        || (is_favicon_file
+            && (content_type.contains("icon") || content_type.contains("octet-stream")));
     if !is_image_ctype {
         return (None, 0, 0);
     }
@@ -338,10 +346,7 @@ async fn download_image_with_size(
 /// new and resolvable are appended.
 pub async fn ensure_link_previews(db: &ChatDb, data_dir: &Path, content: &str) -> Option<String> {
     let mut v: Value = serde_json::from_str(content).ok()?;
-    let type_uppercase = v
-        .get("type")
-        .and_then(|t| t.as_str())?
-        .to_uppercase();
+    let type_uppercase = v.get("type").and_then(|t| t.as_str())?.to_uppercase();
     if type_uppercase != "TEXT" {
         return None;
     }
@@ -394,7 +399,9 @@ mod tests {
 
     #[test]
     fn extract_urls_limits_to_five() {
-        let text = (0..8).map(|i| format!(" https://c{i}.com")).collect::<String>();
+        let text = (0..8)
+            .map(|i| format!(" https://c{i}.com"))
+            .collect::<String>();
         assert_eq!(extract_urls(&text).len(), 5);
     }
 
@@ -409,9 +416,21 @@ mod tests {
 
     #[test]
     fn resolve_url_handles_relative_forms() {
-        assert_eq!(resolve_url("https://a.com/x/y", "https://b.com/z"), "https://b.com/z");
-        assert_eq!(resolve_url("https://a.com/x/y", "//cdn.com/img.png"), "https://cdn.com/img.png");
-        assert_eq!(resolve_url("https://a.com/x/y", "/img.png"), "https://a.com/img.png");
-        assert_eq!(resolve_url("https://a.com/x/y", "img.png"), "https://a.com/x/img.png");
+        assert_eq!(
+            resolve_url("https://a.com/x/y", "https://b.com/z"),
+            "https://b.com/z"
+        );
+        assert_eq!(
+            resolve_url("https://a.com/x/y", "//cdn.com/img.png"),
+            "https://cdn.com/img.png"
+        );
+        assert_eq!(
+            resolve_url("https://a.com/x/y", "/img.png"),
+            "https://a.com/img.png"
+        );
+        assert_eq!(
+            resolve_url("https://a.com/x/y", "img.png"),
+            "https://a.com/x/img.png"
+        );
     }
 }

@@ -1,12 +1,12 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite};
 
-use super::super::graphql::{execute_graphql, AppCtx, LocalSchema};
+use super::super::graphql::{AppCtx, LocalSchema, execute_graphql};
 use super::super::peer_graphql::{self, PeerSchema};
 use super::file_server::serve_file;
 use super::proxy_file::proxy_file;
-use super::response::{respond, APP_ID};
+use super::response::{APP_ID, respond};
 use super::upload;
 use crate::local::dlna;
 use plain_rs::{base64_decode, base64_encode, xchacha_decrypt, xchacha_encrypt};
@@ -91,7 +91,10 @@ pub(super) async fn handle<R, W>(
         }
         let body = if content_length > 0 {
             let mut buf = vec![0u8; content_length];
-            if tokio::io::AsyncReadExt::read_exact(&mut reader, &mut buf).await.is_err() {
+            if tokio::io::AsyncReadExt::read_exact(&mut reader, &mut buf)
+                .await
+                .is_err()
+            {
                 return;
             }
             String::from_utf8_lossy(&buf).to_string()
@@ -170,7 +173,14 @@ pub(super) async fn handle<R, W>(
                     String::new()
                 };
                 let json = json!({ "signaturePublicKey": signature_public_key });
-                respond(&mut wr, 200, "OK", json.to_string().as_bytes(), "application/json").await;
+                respond(
+                    &mut wr,
+                    200,
+                    "OK",
+                    json.to_string().as_bytes(),
+                    "application/json",
+                )
+                .await;
             }
         }
         ("GET", "/fs") => {
@@ -195,7 +205,11 @@ pub(super) async fn handle<R, W>(
         }
         ("POST", "/graphql") => {
             let mut body = vec![0u8; content_length];
-            if content_length > 0 && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body).await.is_err() {
+            if content_length > 0
+                && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body)
+                    .await
+                    .is_err()
+            {
                 return;
             }
             let Some(plaintext) = xchacha_decrypt(&ctx.token, &body) else {
@@ -215,7 +229,11 @@ pub(super) async fn handle<R, W>(
         }
         ("POST", "/peer_graphql") => {
             let mut body = vec![0u8; content_length];
-            if content_length > 0 && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body).await.is_err() {
+            if content_length > 0
+                && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body)
+                    .await
+                    .is_err()
+            {
                 return;
             }
             peer_graphql::handle(
@@ -234,7 +252,9 @@ pub(super) async fn handle<R, W>(
         ("POST", "/nearby") => {
             let mut body = vec![0u8; content_length];
             if content_length > 0
-                && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body).await.is_err()
+                && tokio::io::AsyncReadExt::read_exact(&mut reader, &mut body)
+                    .await
+                    .is_err()
             {
                 return;
             }
@@ -247,8 +267,14 @@ pub(super) async fn handle<R, W>(
                     "NearbyRoutes: unknown message type, body={}",
                     &text.chars().take(50).collect::<String>()
                 );
-                respond(&mut wr, 400, "Bad Request", b"unknown message type", "text/plain")
-                    .await;
+                respond(
+                    &mut wr,
+                    400,
+                    "Bad Request",
+                    b"unknown message type",
+                    "text/plain",
+                )
+                .await;
             }
         }
         _ => respond(&mut wr, 404, "Not Found", b"", "text/plain").await,
@@ -272,7 +298,10 @@ fn strip_replay_prefix(payload: &[u8]) -> &[u8] {
 /// Write a DLNA HTTP response, including the custom headers needed for GENA
 /// SUBSCRIBE (SID / TIMEOUT). Uses `AsyncWrite` directly because DLNA responses
 /// bypass the shared `respond` framing.
-async fn respond_dlna<W: AsyncWrite + Unpin>(wr: &mut W, resp: &dlna::http_router::DlnaHttpResponse) {
+async fn respond_dlna<W: AsyncWrite + Unpin>(
+    wr: &mut W,
+    resp: &dlna::http_router::DlnaHttpResponse,
+) {
     use tokio::io::AsyncWriteExt;
     let mut head = format!(
         "HTTP/1.1 {} {}\r\ncontent-length: {}\r\nconnection: close\r\n",

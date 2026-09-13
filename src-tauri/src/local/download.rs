@@ -22,10 +22,7 @@ use tokio::task::JoinHandle;
 
 use crate::local::app_file_store::import_file;
 use crate::local::enums::DownloadStatus;
-use crate::local::graphql::context::{
-    AppCtx, WsEvent, WS_DOWNLOAD_PROGRESS, WS_MESSAGE_UPDATED,
-};
-
+use crate::local::graphql::context::{AppCtx, WS_DOWNLOAD_PROGRESS, WS_MESSAGE_UPDATED, WsEvent};
 
 /// Download task state. Mirrors plain-app `DownloadStatus`.
 #[derive(Clone, Debug)]
@@ -254,13 +251,7 @@ async fn execute_download(
         emit_progress(&ctx, &s);
     }
 
-    let peer_ip = peer
-        .ip
-        .split(',')
-        .next()
-        .unwrap_or("")
-        .trim()
-        .to_string();
+    let peer_ip = peer.ip.split(',').next().unwrap_or("").trim().to_string();
     if peer_ip.is_empty() {
         set_failed(&ctx, &state, "Peer has no IP").await;
         cleanup(&message_id).await;
@@ -282,9 +273,7 @@ async fn execute_download(
 
         let fs_base = crate::utils::build_url("https", &peer_ip, peer_port, "/fs");
         let url = reqwest::Url::parse_with_params(&fs_base, &[("id", file_id.as_str())])
-            .unwrap_or_else(|_| {
-                reqwest::Url::parse(&fs_base).expect("valid fs base url")
-            });
+            .unwrap_or_else(|_| reqwest::Url::parse(&fs_base).expect("valid fs base url"));
 
         match download_one(
             &ctx,
@@ -316,8 +305,7 @@ async fn execute_download(
         return;
     }
 
-    let new_content =
-        serde_json::to_string(&content).unwrap_or_else(|_| chat.content.clone());
+    let new_content = serde_json::to_string(&content).unwrap_or_else(|_| chat.content.clone());
     ctx.db.update_chat_content(&message_id, &new_content);
 
     // Re-fetch the updated chat and emit the FULL item JSON (including the
@@ -332,9 +320,10 @@ async fn execute_download(
             return;
         }
     };
-    let updated_payload = serde_json::json!([
-        crate::local::chat_handler::chat_to_json(&updated_chat, &ctx.token)
-    ])
+    let updated_payload = serde_json::json!([crate::local::chat_handler::chat_to_json(
+        &updated_chat,
+        &ctx.token
+    )])
     .to_string();
     let _ = ctx.event_tx.send(WsEvent {
         event_type: WS_MESSAGE_UPDATED,

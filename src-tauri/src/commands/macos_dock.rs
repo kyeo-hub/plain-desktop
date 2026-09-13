@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock, RwLock};
 
 use objc2::runtime::{AnyObject, ClassBuilder, Sel};
-use tauri::Manager;
-use objc2::{msg_send, sel, ClassType};
+use objc2::{ClassType, msg_send, sel};
 use objc2_app_kit::{NSApplication, NSMenu, NSMenuItem};
 use objc2_foundation::{MainThreadMarker, NSString};
+use tauri::Manager;
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
@@ -84,7 +84,11 @@ fn register_action_class() -> &'static objc2::runtime::AnyClass {
             let mut snapshot: Vec<String> = Vec::new();
 
             if let Some(handle) = APP_HANDLE.get() {
-                let titles = window_titles().read().ok().map(|m| m.clone()).unwrap_or_default();
+                let titles = window_titles()
+                    .read()
+                    .ok()
+                    .map(|m| m.clone())
+                    .unwrap_or_default();
 
                 let mut labels: Vec<String> = handle
                     .webview_windows()
@@ -184,8 +188,7 @@ pub fn setup(handle: tauri::AppHandle) {
         let title = NSString::from_str("New Window");
         let key = NSString::from_str("");
         let item: *mut AnyObject = msg_send![NSMenuItem::class(), alloc];
-        let item: *mut AnyObject =
-            msg_send![item, initWithTitle: &*title, action: sel!(openNewWindow:), keyEquivalent: &*key];
+        let item: *mut AnyObject = msg_send![item, initWithTitle: &*title, action: sel!(openNewWindow:), keyEquivalent: &*key];
         let _: () = msg_send![item, setTarget: target];
         menu.addItem(&*(item as *const NSMenuItem));
         let _: () = msg_send![item, release];

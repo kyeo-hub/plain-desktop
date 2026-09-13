@@ -25,11 +25,11 @@
 
 use std::collections::HashSet;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::local::db::{ChatDb, DChannel, DPeer};
-use crate::local::graphql::context::ChannelKeyCache;
 use crate::local::enums::ChatStatus;
+use crate::local::graphql::context::ChannelKeyCache;
 use crate::local::graphql::peer::{deliver_to_peer, peer_graphql_urls};
 
 // ── DMessageDeliveryResult ──────────────────────────────────────────────────
@@ -109,11 +109,20 @@ pub async fn send(
 
     match leader_id {
         None => SendResult::NoLeader,
-        Some(lid) if lid == client_id => {
-            SendResult::Status(broadcast_as_leader(channel, client_id, content, db, channel_key_cache, kp_bytes).await)
-        }
+        Some(lid) if lid == client_id => SendResult::Status(
+            broadcast_as_leader(channel, client_id, content, db, channel_key_cache, kp_bytes).await,
+        ),
         Some(lid) => {
-            send_to_leader(channel, &lid, client_id, content, db, channel_key_cache, kp_bytes).await
+            send_to_leader(
+                channel,
+                &lid,
+                client_id,
+                content,
+                db,
+                channel_key_cache,
+                kp_bytes,
+            )
+            .await
         }
     }
 }
@@ -143,7 +152,16 @@ async fn broadcast_as_leader(
         .filter(|id| id != client_id)
         .collect();
 
-    send_to_recipients(channel, &recipient_ids, content, db, channel_key_cache, client_id, kp_bytes).await
+    send_to_recipients(
+        channel,
+        &recipient_ids,
+        content,
+        db,
+        channel_key_cache,
+        client_id,
+        kp_bytes,
+    )
+    .await
 }
 
 // ── ChannelChatSender.sendToRecipients ──────────────────────────────────────
@@ -196,7 +214,15 @@ async fn send_to_recipients(
             }
         };
         results.push(
-            send_to_member(channel, &member_peer, content, channel_key_cache, client_id, kp_bytes).await,
+            send_to_member(
+                channel,
+                &member_peer,
+                content,
+                channel_key_cache,
+                client_id,
+                kp_bytes,
+            )
+            .await,
         );
     }
     results
@@ -228,7 +254,15 @@ async fn send_to_leader(
         Some(p) => p,
         None => return SendResult::LeaderPeerMissing(()),
     };
-    let result = send_to_member(channel, &leader_peer, content, channel_key_cache, client_id, kp_bytes).await;
+    let result = send_to_member(
+        channel,
+        &leader_peer,
+        content,
+        channel_key_cache,
+        client_id,
+        kp_bytes,
+    )
+    .await;
     SendResult::Status(vec![result])
 }
 

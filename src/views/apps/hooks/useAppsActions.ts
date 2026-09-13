@@ -98,7 +98,7 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
   }
 
   function dropApkFiles(e: DragEvent) {
-    dropFiles(e, app.value.downloadsDir, (file) => file.name.endsWith('.apk'))
+    dropFiles(e, app.value.downloadsDir, (file) => /\.(apk|apkm|apks|xapk)$/i.test(file.name))
   }
 
   const uploadTaskDoneHandler = (r: IUploadItem) => {

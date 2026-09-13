@@ -9,7 +9,7 @@
 use async_graphql::{Context, Object};
 use std::sync::Arc;
 
-use super::super::context::{refresh_peer_key_cache, AppCtx, WsEvent, WS_PEER_STATUS_UPDATED};
+use super::super::context::{AppCtx, WS_PEER_STATUS_UPDATED, WsEvent, refresh_peer_key_cache};
 use crate::local::enums::PeerStatus;
 
 #[derive(Default)]

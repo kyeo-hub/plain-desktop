@@ -10,22 +10,20 @@
 use std::sync::Arc;
 
 use plain_rs::base64_decode;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::channel::chat_helper::{
-    build_no_leader_status_data, build_status_data_json, compute_status, send, SendResult,
+    SendResult, build_no_leader_status_data, build_status_data_json, compute_status, send,
 };
 use super::channel::handler as channel_handler;
 use super::db::{ChatDb, DChat};
 use super::enums::{ChannelStatus, ChannelSystemMessageType, ChatStatus};
 use super::graphql::context::{
-    channels_updated_payload, load_key_cache, AppCtx, WsEvent, WS_CHANNELS_UPDATED,
-    WS_MESSAGE_CREATED, WS_MESSAGE_DELETED, WS_MESSAGE_UPDATED,
+    AppCtx, WS_CHANNELS_UPDATED, WS_MESSAGE_CREATED, WS_MESSAGE_DELETED, WS_MESSAGE_UPDATED,
+    WsEvent, channels_updated_payload, load_key_cache,
 };
 use super::graphql::peer::{deliver_to_peer, peer_graphql_urls};
-use super::graphql::schema::types::{
-    chat_item_data_from_content, make_file_id, ChatItem,
-};
+use super::graphql::schema::types::{ChatItem, chat_item_data_from_content, make_file_id};
 use super::link_preview;
 
 /// Build the wire JSON for a single chat item, embedding the resolved
@@ -174,11 +172,13 @@ pub(crate) fn receive_peer_chat(
     // `PeerGraphQL.createChatItem` IllegalStateException("Channel not joined")).
     if !channel_id.is_empty() {
         match app.db.get_channel_by_id(channel_id) {
-            Some(ch) if ch.status == ChannelStatus::Joined || ch.status == ChannelStatus::Kicked => {}
+            Some(ch)
+                if ch.status == ChannelStatus::Joined || ch.status == ChannelStatus::Kicked => {}
             Some(_) => {
                 log::warn!(
                     "[peer_graphql] dropping chat for channel {channel_id} in status {}",
-                    app.db.get_channel_by_id(channel_id)
+                    app.db
+                        .get_channel_by_id(channel_id)
                         .map(|c| c.status)
                         .unwrap_or_default()
                 );
@@ -256,13 +256,18 @@ fn to_peer_content(content: &str, token: &str) -> String {
     };
     for item in items.iter_mut() {
         if let Some(uri) = item.get("uri").and_then(|u| u.as_str())
-            && uri.starts_with("fid:") {
-                let encrypted = make_file_id(uri, token);
-                if !encrypted.is_empty()
-                    && let Some(obj) = item.as_object_mut() {
-                        obj.insert("uri".to_string(), Value::String(format!("fsid:{encrypted}")));
-                    }
+            && uri.starts_with("fid:")
+        {
+            let encrypted = make_file_id(uri, token);
+            if !encrypted.is_empty()
+                && let Some(obj) = item.as_object_mut()
+            {
+                obj.insert(
+                    "uri".to_string(),
+                    Value::String(format!("fsid:{encrypted}")),
+                );
             }
+        }
     }
     v.to_string()
 }
@@ -291,11 +296,7 @@ fn spawn_peer_delivery(app: &Arc<AppCtx>, chat: &DChat) {
     }
     .or_else(|| {
         let raw = base64_decode(&peer.key);
-        if raw.len() == 32 {
-            Some(raw)
-        } else {
-            None
-        }
+        if raw.len() == 32 { Some(raw) } else { None }
     });
     let Some(key) = key else { return };
 
@@ -311,15 +312,8 @@ fn spawn_peer_delivery(app: &Arc<AppCtx>, chat: &DChat) {
     let peer_name_for_status = peer.name.clone();
     let discover_manager = app.discover_manager.clone();
     tokio::spawn(async move {
-        let delivery_result = deliver_to_peer(
-            &peer_urls,
-            &key,
-            &client_id,
-            &kp_bytes,
-            &content_str,
-            None,
-        )
-        .await;
+        let delivery_result =
+            deliver_to_peer(&peer_urls, &key, &client_id, &kp_bytes, &content_str, None).await;
         if delivery_result.is_err() {
             // A failed send usually means the peer's IP/port changed — kick an
             // mDNS browse so the reply refreshes the peer row for next time.
@@ -430,16 +424,18 @@ fn spawn_link_preview_refresh(app: &Arc<AppCtx>, chat_id: &str, content: &str) {
     let chat_id = chat_id.to_string();
     let content = content.to_string();
     tokio::spawn(async move {
-        let Some(new_content) = link_preview::ensure_link_previews(&db, &data_dir, &content).await else {
+        let Some(new_content) = link_preview::ensure_link_previews(&db, &data_dir, &content).await
+        else {
             return;
         };
         if db.update_chat_content(&chat_id, &new_content)
-            && let Some(updated) = db.get_chat_by_id(&chat_id) {
-                let _ = event_tx.send(WsEvent {
-                    event_type: WS_MESSAGE_UPDATED,
-                    payload: json!([chat_to_json(&updated, &token)]).to_string(),
-                });
-            }
+            && let Some(updated) = db.get_chat_by_id(&chat_id)
+        {
+            let _ = event_tx.send(WsEvent {
+                event_type: WS_MESSAGE_UPDATED,
+                payload: json!([chat_to_json(&updated, &token)]).to_string(),
+            });
+        }
     });
 }
 
@@ -466,10 +462,17 @@ fn resolve_chat_ids(db: &ChatDb, query: &str) -> Vec<String> {
             .filter(|s| !s.is_empty())
             .map(String::from)
             .collect(),
-        "channel" => db.get_chats_by_channel(value).into_iter().map(|c| c.id).collect(),
+        "channel" => db
+            .get_chats_by_channel(value)
+            .into_iter()
+            .map(|c| c.id)
+            .collect(),
         "peer" => {
             let peer_id = if value == "local" { "local" } else { value };
-            db.get_chats_by_peer(peer_id).into_iter().map(|c| c.id).collect()
+            db.get_chats_by_peer(peer_id)
+                .into_iter()
+                .map(|c| c.id)
+                .collect()
         }
         _ => vec![],
     }
@@ -478,8 +481,8 @@ fn resolve_chat_ids(db: &ChatDb, query: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use plain_rs::xchacha_decrypt;
     use crate::local::db::ChatDb;
+    use plain_rs::xchacha_decrypt;
     use plain_rs::{base64_decode, base64_encode};
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -577,7 +580,10 @@ mod tests {
         let peer_content = to_peer_content(&content, &token);
         let v: Value = serde_json::from_str(&peer_content).unwrap();
         let uri = v["value"]["items"][0]["uri"].as_str().unwrap();
-        assert!(uri.starts_with("fsid:"), "uri should be fsid: prefix, got: {uri}");
+        assert!(
+            uri.starts_with("fsid:"),
+            "uri should be fsid: prefix, got: {uri}"
+        );
 
         // The encrypted part (after fsid:) must round-trip through
         // xchacha_decrypt to the original fid: URI.

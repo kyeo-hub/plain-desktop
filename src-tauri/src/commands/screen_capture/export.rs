@@ -95,7 +95,7 @@ impl<R: Runtime> CaptureExportPort for TauriCaptureExportPort<R> {
     }
 
     fn copy_png(&self, width: u32, height: u32, png: &[u8]) -> Result<(), CaptureError> {
-        let decoded = xcap::image::load_from_memory(png).map_err(|_| {
+        let decoded = image::load_from_memory(png).map_err(|_| {
             CaptureError::new(
                 CaptureErrorCode::ClipboardFailed,
                 "could not decode the capture for the system clipboard",

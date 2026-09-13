@@ -24,13 +24,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 
+use super::response::respond;
 use crate::local::app_file_store;
 use crate::local::graphql::context::AppCtx;
-use super::response::respond;
 
 const MAX_BODY_BYTES: usize = 16 * 1024 * 1024; // 16 MB safety cap; the client
-                                                // should never send more
-                                                // than ~5 MB per request.
+// should never send more
+// than ~5 MB per request.
 
 pub(super) async fn handle_upload<R, W>(
     rd: R,
@@ -45,7 +45,14 @@ pub(super) async fn handle_upload<R, W>(
     let boundary = match parse_multipart_boundary(content_type) {
         Some(b) => b,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing multipart boundary", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing multipart boundary",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
@@ -78,14 +85,31 @@ pub(super) async fn handle_upload<R, W>(
     let info_bytes = match parts.iter().find(|p| p.name == "info") {
         Some(p) => p.body,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing info part", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing info part",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
-    let file_part = match parts.iter().find(|p| p.name == "file" && p.filename.is_some()) {
+    let file_part = match parts
+        .iter()
+        .find(|p| p.name == "file" && p.filename.is_some())
+    {
         Some(p) => p,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing file part", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing file part",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
@@ -98,17 +122,37 @@ pub(super) async fn handle_upload<R, W>(
     let info: serde_json::Value = match serde_json::from_slice(&plaintext) {
         Ok(v) => v,
         Err(e) => {
-            respond(&mut wr, 400, "Bad Request", format!("bad info json: {e}").as_bytes(), "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                format!("bad info json: {e}").as_bytes(),
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
-    let is_app_file = info.get("isAppFile").and_then(|v| v.as_bool()).unwrap_or(false);
-    let info_dir = info.get("dir").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let info_replace = info.get("replace").and_then(|v| v.as_bool()).unwrap_or(false);
+    let is_app_file = info
+        .get("isAppFile")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let info_dir = info
+        .get("dir")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let info_replace = info
+        .get("replace")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let info_size = info.get("size").and_then(|v| v.as_i64()).unwrap_or(0);
 
     if info_size > 0 && file_part.body.len() as i64 != info_size {
-        let msg = format!("Size mismatch: expected {info_size}, got {}", file_part.body.len());
+        let msg = format!(
+            "Size mismatch: expected {info_size}, got {}",
+            file_part.body.len()
+        );
         respond(&mut wr, 400, "Bad Request", msg.as_bytes(), "text/plain").await;
         return;
     }
@@ -118,21 +162,48 @@ pub(super) async fn handle_upload<R, W>(
     let temp = match stage_to_temp(ctx, file_part.body).await {
         Ok(p) => p,
         Err(e) => {
-            respond(&mut wr, 500, "Internal Server Error", e.as_bytes(), "text/plain").await;
+            respond(
+                &mut wr,
+                500,
+                "Internal Server Error",
+                e.as_bytes(),
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
 
     if is_app_file {
         let file_name = file_part.filename.clone().unwrap_or_default();
-        match app_file_store::import_file(&ctx.db, &ctx.data_dir, &temp, &file_name, &file_part.content_type.clone().unwrap_or_default()) {
+        match app_file_store::import_file(
+            &ctx.db,
+            &ctx.data_dir,
+            &temp,
+            &file_name,
+            &file_part.content_type.clone().unwrap_or_default(),
+        ) {
             Ok(result) => {
                 let _ = tokio::fs::remove_file(&temp).await;
-                respond(&mut wr, 201, "Created", result.fid_suffix.as_bytes(), "text/plain").await;
+                respond(
+                    &mut wr,
+                    201,
+                    "Created",
+                    result.fid_suffix.as_bytes(),
+                    "text/plain",
+                )
+                .await;
             }
             Err(e) => {
                 let _ = tokio::fs::remove_file(&temp).await;
-                respond(&mut wr, 500, "Internal Server Error", e.to_string().as_bytes(), "text/plain").await;
+                respond(
+                    &mut wr,
+                    500,
+                    "Internal Server Error",
+                    e.to_string().as_bytes(),
+                    "text/plain",
+                )
+                .await;
             }
         }
     } else {
@@ -157,7 +228,14 @@ pub(super) async fn handle_upload<R, W>(
             }
             Err(e) => {
                 let _ = tokio::fs::remove_file(&temp).await;
-                respond(&mut wr, 500, "Internal Server Error", e.to_string().as_bytes(), "text/plain").await;
+                respond(
+                    &mut wr,
+                    500,
+                    "Internal Server Error",
+                    e.to_string().as_bytes(),
+                    "text/plain",
+                )
+                .await;
             }
         }
     }
@@ -176,7 +254,14 @@ pub(super) async fn handle_upload_chunk<R, W>(
     let boundary = match parse_multipart_boundary(content_type) {
         Some(b) => b,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing multipart boundary", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing multipart boundary",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
@@ -209,14 +294,28 @@ pub(super) async fn handle_upload_chunk<R, W>(
     let info_bytes = match parts.iter().find(|p| p.name == "info") {
         Some(p) => p.body,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing info part", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing info part",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
     let file_part = match parts.iter().find(|p| p.name == "file") {
         Some(p) => p,
         None => {
-            respond(&mut wr, 400, "Bad Request", b"missing file part", "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                b"missing file part",
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
@@ -228,22 +327,41 @@ pub(super) async fn handle_upload_chunk<R, W>(
     let info: serde_json::Value = match serde_json::from_slice(&plaintext) {
         Ok(v) => v,
         Err(e) => {
-            respond(&mut wr, 400, "Bad Request", format!("bad info json: {e}").as_bytes(), "text/plain").await;
+            respond(
+                &mut wr,
+                400,
+                "Bad Request",
+                format!("bad info json: {e}").as_bytes(),
+                "text/plain",
+            )
+            .await;
             return;
         }
     };
-    let file_id = info.get("fileId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let file_id = info
+        .get("fileId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let index = info.get("index").and_then(|v| v.as_i64()).unwrap_or(-1) as i32;
     let expected_size = info.get("size").and_then(|v| v.as_i64()).unwrap_or(0);
 
     if file_id.is_empty() || index < 0 {
-        respond(&mut wr, 400, "Bad Request", b"fileId or index is missing or invalid", "text/plain").await;
+        respond(
+            &mut wr,
+            400,
+            "Bad Request",
+            b"fileId or index is missing or invalid",
+            "text/plain",
+        )
+        .await;
         return;
     }
 
     let saved_size = file_part.body.len() as u64;
     if expected_size > 0 && saved_size as i64 != expected_size {
-        let msg = format!("Chunk {index} size mismatch: expected {expected_size}, received {saved_size}");
+        let msg =
+            format!("Chunk {index} size mismatch: expected {expected_size}, received {saved_size}");
         respond(&mut wr, 400, "Bad Request", msg.as_bytes(), "text/plain").await;
         return;
     }
@@ -251,19 +369,38 @@ pub(super) async fn handle_upload_chunk<R, W>(
     let dir = ctx.data_dir.join("upload_tmp").join(&file_id);
     if let Err(e) = tokio::fs::create_dir_all(&dir).await {
         let msg = format!("create_dir_all failed: {e}");
-        respond(&mut wr, 500, "Internal Server Error", msg.as_bytes(), "text/plain").await;
+        respond(
+            &mut wr,
+            500,
+            "Internal Server Error",
+            msg.as_bytes(),
+            "text/plain",
+        )
+        .await;
         return;
     }
     let chunk_path = dir.join(format!("chunk_{index}"));
     if let Err(e) = tokio::fs::write(&chunk_path, file_part.body).await {
         let msg = format!("chunk write failed: {e}");
-        respond(&mut wr, 500, "Internal Server Error", msg.as_bytes(), "text/plain").await;
+        respond(
+            &mut wr,
+            500,
+            "Internal Server Error",
+            msg.as_bytes(),
+            "text/plain",
+        )
+        .await;
         return;
     }
-    let final_size = tokio::fs::metadata(&chunk_path).await.map(|m| m.len()).unwrap_or(0);
+    let final_size = tokio::fs::metadata(&chunk_path)
+        .await
+        .map(|m| m.len())
+        .unwrap_or(0);
     if expected_size > 0 && final_size as i64 != expected_size {
         let _ = tokio::fs::remove_file(&chunk_path).await;
-        let msg = format!("Chunk {index} final size mismatch: expected {expected_size}, saved {final_size}");
+        let msg = format!(
+            "Chunk {index} final size mismatch: expected {expected_size}, saved {final_size}"
+        );
         respond(&mut wr, 400, "Bad Request", msg.as_bytes(), "text/plain").await;
         return;
     }
@@ -325,7 +462,12 @@ fn parse_multipart<'a>(body: &'a [u8], boundary: &[u8]) -> Result<Vec<Part<'a>>,
         // Strip a trailing \r\n that always precedes the next part separator.
         let part_body = strip_trailing_crlf(part_body);
 
-        parts.push(Part { name, filename, content_type, body: part_body });
+        parts.push(Part {
+            name,
+            filename,
+            content_type,
+            body: part_body,
+        });
 
         if pos >= body.len() {
             return Err("multipart: unexpected end of body".to_string());
@@ -354,10 +496,16 @@ fn parse_multipart<'a>(body: &'a [u8], boundary: &[u8]) -> Result<Vec<Part<'a>>,
 }
 
 fn strip_trailing_crlf(b: &[u8]) -> &[u8] {
-    if b.ends_with(b"\r\n") { &b[..b.len() - 2] } else { b }
+    if b.ends_with(b"\r\n") {
+        &b[..b.len() - 2]
+    } else {
+        b
+    }
 }
 
-fn parse_part_headers(header_block: &[u8]) -> Result<(String, Option<String>, Option<String>), String> {
+fn parse_part_headers(
+    header_block: &[u8],
+) -> Result<(String, Option<String>, Option<String>), String> {
     let text = std::str::from_utf8(header_block)
         .map_err(|_| "multipart: header is not utf-8".to_string())?;
     let mut name = String::new();
@@ -426,9 +574,13 @@ async fn read_body_exact<R: AsyncRead + Unpin>(mut rd: R, len: usize) -> Result<
 
 async fn stage_to_temp(ctx: &Arc<AppCtx>, data: &[u8]) -> Result<PathBuf, String> {
     let dir = ctx.data_dir.join("upload_tmp");
-    tokio::fs::create_dir_all(&dir).await.map_err(|e| e.to_string())?;
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| e.to_string())?;
     let path = dir.join(format!("upload_{}_{}.bin", std::process::id(), now_ms()));
-    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(path)
 }
 
@@ -526,7 +678,12 @@ mod tests {
         file_data.extend_from_slice(b"-other"); // not the full boundary
         let (body, boundary) = build_multipart(&[
             ("info", None, None, info_data),
-            ("file", Some("x.bin"), Some("application/octet-stream"), &file_data),
+            (
+                "file",
+                Some("x.bin"),
+                Some("application/octet-stream"),
+                &file_data,
+            ),
         ]);
         let parts = parse_multipart(&body, &boundary).expect("parse");
         assert_eq!(parts.len(), 2);

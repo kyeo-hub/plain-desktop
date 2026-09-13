@@ -31,7 +31,11 @@ pub fn build_transport_info_response(transport_state: &str) -> String {
     )
 }
 
-pub fn build_position_info_response(rel_time: &str, track_duration: &str, track_uri: &str) -> String {
+pub fn build_position_info_response(
+    rel_time: &str,
+    track_duration: &str,
+    track_uri: &str,
+) -> String {
     build_response(
         "GetPositionInfo",
         &format!(
@@ -54,7 +58,10 @@ pub fn build_media_info_response() -> String {
     )
 }
 
-pub fn parse_soap_action(soap_action_header: &str, body: &str) -> (String, std::collections::HashMap<String, String>) {
+pub fn parse_soap_action(
+    soap_action_header: &str,
+    body: &str,
+) -> (String, std::collections::HashMap<String, String>) {
     let action = soap_action_header
         .trim_matches('"')
         .rsplit('#')
@@ -85,8 +92,14 @@ fn parse_body_params(xml: &str, action: &str) -> std::collections::HashMap<Strin
             None => break None,
         };
         let tag_content = &xml[tag_start + 1..tag_end];
-        if !tag_content.starts_with('/') && !tag_content.starts_with('!') && !tag_content.starts_with('?') {
-            let tag_name = tag_content.split([' ', '\t', '\n', '\r', '/', '>']).next().unwrap_or("");
+        if !tag_content.starts_with('/')
+            && !tag_content.starts_with('!')
+            && !tag_content.starts_with('?')
+        {
+            let tag_name = tag_content
+                .split([' ', '\t', '\n', '\r', '/', '>'])
+                .next()
+                .unwrap_or("");
             if tag_name.ends_with(action) {
                 break Some(tag_end + 1);
             }
@@ -94,7 +107,9 @@ fn parse_body_params(xml: &str, action: &str) -> std::collections::HashMap<Strin
         pos = tag_end + 1;
     };
 
-    let Some(mut pos) = action_inner_start else { return result };
+    let Some(mut pos) = action_inner_start else {
+        return result;
+    };
 
     loop {
         if pos >= len {
@@ -111,7 +126,10 @@ fn parse_body_params(xml: &str, action: &str) -> std::collections::HashMap<Strin
         let tag_content = &xml[tag_start + 1..tag_end];
 
         if let Some(stripped) = tag_content.strip_prefix('/') {
-            let close_tag = stripped.split([' ', '\t', '\n', '\r', '>']).next().unwrap_or("");
+            let close_tag = stripped
+                .split([' ', '\t', '\n', '\r', '>'])
+                .next()
+                .unwrap_or("");
             if close_tag.ends_with(action) {
                 break;
             }
@@ -119,12 +137,19 @@ fn parse_body_params(xml: &str, action: &str) -> std::collections::HashMap<Strin
             continue;
         }
 
-        if tag_content.ends_with('/') || tag_content.starts_with('!') || tag_content.starts_with('?') {
+        if tag_content.ends_with('/')
+            || tag_content.starts_with('!')
+            || tag_content.starts_with('?')
+        {
             pos = tag_end + 1;
             continue;
         }
 
-        let tag_name = tag_content.split([' ', '\t', '\n', '\r', '/', '>']).next().unwrap_or("").to_string();
+        let tag_name = tag_content
+            .split([' ', '\t', '\n', '\r', '/', '>'])
+            .next()
+            .unwrap_or("")
+            .to_string();
         let text_start = tag_end + 1;
         let text_end = match bytes[text_start..].iter().position(|&b| b == b'<') {
             Some(p) => text_start + p,
@@ -169,14 +194,17 @@ pub fn extract_album_art_uri_from_didl_meta(meta: &str) -> String {
 
 pub fn clean_media_title(raw: &str) -> String {
     let media_extensions = [
-        "mp3", "flac", "aac", "ogg", "m4a", "wav", "opus", "wma",
-        "mp4", "mkv", "avi", "mov", "wmv", "flv", "ts", "webm",
-        "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif",
+        "mp3", "flac", "aac", "ogg", "m4a", "wav", "opus", "wma", "mp4", "mkv", "avi", "mov",
+        "wmv", "flv", "ts", "webm", "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif",
     ];
     let decoded = percent_decode(raw);
     let ext = decoded.rsplit('.').next().unwrap_or("").to_lowercase();
     if media_extensions.contains(&ext.as_str()) {
-        decoded.rsplitn(2, '.').last().unwrap_or(&decoded).to_string()
+        decoded
+            .rsplitn(2, '.')
+            .last()
+            .unwrap_or(&decoded)
+            .to_string()
     } else {
         decoded
     }
@@ -194,18 +222,19 @@ pub fn extract_media_type_from_didl_meta(meta: &str, fallback_uri: &str) -> Dlna
     let class_start = meta.find("<upnp:class>");
     let class_end = meta.find("</upnp:class>");
     if let (Some(cs), Some(ce)) = (class_start, class_end)
-        && cs < ce {
-            let cls = meta[cs + 12..ce].to_lowercase();
-            return if cls.contains("audioitem") || cls.contains("musictrack") {
-                DlnaMediaType::AUDIO
-            } else if cls.contains("imageitem") || cls.contains("photo") {
-                DlnaMediaType::IMAGE
-            } else if cls.contains("videoitem") {
-                DlnaMediaType::VIDEO
-            } else {
-                DlnaMediaType::UNKNOWN
-            };
-        }
+        && cs < ce
+    {
+        let cls = meta[cs + 12..ce].to_lowercase();
+        return if cls.contains("audioitem") || cls.contains("musictrack") {
+            DlnaMediaType::AUDIO
+        } else if cls.contains("imageitem") || cls.contains("photo") {
+            DlnaMediaType::IMAGE
+        } else if cls.contains("videoitem") {
+            DlnaMediaType::VIDEO
+        } else {
+            DlnaMediaType::UNKNOWN
+        };
+    }
     // Tier 3: URL extension
     let ext = fallback_uri
         .rsplit('.')
@@ -256,7 +285,12 @@ pub fn parse_dlna_time_to_ms(time: &str) -> i64 {
     if parts.len() >= 3 {
         let h = parts[0].parse::<i64>().unwrap_or(-1);
         let m = parts[1].parse::<i64>().unwrap_or(-1);
-        let s = parts[2].split('.').next().unwrap_or("0").parse::<i64>().unwrap_or(-1);
+        let s = parts[2]
+            .split('.')
+            .next()
+            .unwrap_or("0")
+            .parse::<i64>()
+            .unwrap_or(-1);
         if h >= 0 && m >= 0 && s >= 0 {
             return (h * 3600 + m * 60 + s) * 1000;
         }
@@ -264,7 +298,10 @@ pub fn parse_dlna_time_to_ms(time: &str) -> i64 {
     -1
 }
 
-pub fn resolve_sender_name(headers: &std::collections::HashMap<String, String>, sender_ip: &str) -> String {
+pub fn resolve_sender_name(
+    headers: &std::collections::HashMap<String, String>,
+    sender_ip: &str,
+) -> String {
     headers
         .get("c-name")
         .filter(|v| !v.is_empty())
@@ -273,7 +310,9 @@ pub fn resolve_sender_name(headers: &std::collections::HashMap<String, String>, 
 }
 
 fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn decode_xml_entities(text: &str) -> String {
@@ -324,7 +363,10 @@ mod tests {
             r#"<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><CurrentURI>http://x/y.mp4</CurrentURI><CurrentURIMetaData><DIDL-Lite/></CurrentURIMetaData></u:SetAVTransportURI></s:Body></s:Envelope>"#,
         );
         assert_eq!(action, "SetAVTransportURI");
-        assert_eq!(params.get("CurrentURI").map(String::as_str), Some("http://x/y.mp4"));
+        assert_eq!(
+            params.get("CurrentURI").map(String::as_str),
+            Some("http://x/y.mp4")
+        );
         assert_eq!(params.get("InstanceID").map(String::as_str), Some("0"));
     }
 
@@ -345,17 +387,32 @@ mod tests {
     #[test]
     fn extract_media_type_from_meta_tiers() {
         let meta_with_pi = r#"<DIDL-Lite><res protocolInfo="http-get:*:video/mp4:*">http://x/a</res><upnp:class>object.item.videoItem</upnp:class></DIDL-Lite>"#;
-        assert_eq!(extract_media_type_from_didl_meta(meta_with_pi, ""), DlnaMediaType::VIDEO);
+        assert_eq!(
+            extract_media_type_from_didl_meta(meta_with_pi, ""),
+            DlnaMediaType::VIDEO
+        );
         let meta_with_class = r#"<upnp:class>object.item.audioItem.musicTrack</upnp:class>"#;
-        assert_eq!(extract_media_type_from_didl_meta(meta_with_class, ""), DlnaMediaType::AUDIO);
-        assert_eq!(extract_media_type_from_didl_meta("", "http://x/song.mp3"), DlnaMediaType::AUDIO);
-        assert_eq!(extract_media_type_from_didl_meta("", "http://x/photo.jpg"), DlnaMediaType::IMAGE);
+        assert_eq!(
+            extract_media_type_from_didl_meta(meta_with_class, ""),
+            DlnaMediaType::AUDIO
+        );
+        assert_eq!(
+            extract_media_type_from_didl_meta("", "http://x/song.mp3"),
+            DlnaMediaType::AUDIO
+        );
+        assert_eq!(
+            extract_media_type_from_didl_meta("", "http://x/photo.jpg"),
+            DlnaMediaType::IMAGE
+        );
     }
 
     #[test]
     fn album_art_extraction() {
         let meta = "<upnp:albumArtURI>http://x/art.jpg</upnp:albumArtURI>";
-        assert_eq!(extract_album_art_uri_from_didl_meta(meta), "http://x/art.jpg");
+        assert_eq!(
+            extract_album_art_uri_from_didl_meta(meta),
+            "http://x/art.jpg"
+        );
         assert_eq!(extract_album_art_uri_from_didl_meta("no art"), "");
     }
 }

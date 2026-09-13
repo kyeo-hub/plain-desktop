@@ -1,7 +1,7 @@
 use rusqlite::params;
 
-use super::utils::now_iso;
 use super::ChatDb;
+use super::utils::now_iso;
 use crate::local::enums::{DeviceType, PeerStatus};
 
 /// Matches plain-app `DPeer` entity.
@@ -137,7 +137,12 @@ impl ChatDb {
         if let Err(e) = result {
             log::error!("upsert_peer failed id={} err={e}", peer.id);
         } else {
-            log::info!("upsert_peer ok id={} name={} status={}", peer.id, peer.name, peer.status);
+            log::info!(
+                "upsert_peer ok id={} name={} status={}",
+                peer.id,
+                peer.name,
+                peer.status
+            );
         }
     }
 
@@ -292,8 +297,7 @@ mod tests {
 
     #[test]
     fn update_peer_status_and_key_clears_key_for_channel_demotion() {
-        let db =
-            ChatDb::open(&unique_tmp_dir("key-clear").join("local_chat.db")).expect("open db");
+        let db = ChatDb::open(&unique_tmp_dir("key-clear").join("local_chat.db")).expect("open db");
         seed_peer(&db, "p1", PeerStatus::Paired, "secret-key");
 
         db.update_peer_status_and_key("p1", PeerStatus::Channel, "");
@@ -317,7 +321,15 @@ mod tests {
     fn login_peer_creates_unpaired_peer_with_token() {
         let db = ChatDb::open(&unique_tmp_dir("login-new").join("local_chat.db")).expect("open db");
 
-        db.login_peer("p1", "Pixel 9", "192.168.1.10", 8443, DeviceType::Phone, "tok1", "sig1");
+        db.login_peer(
+            "p1",
+            "Pixel 9",
+            "192.168.1.10",
+            8443,
+            DeviceType::Phone,
+            "tok1",
+            "sig1",
+        );
 
         let peer = db.get_peer_by_id("p1").expect("login creates peer");
         assert_eq!(peer.status, PeerStatus::Unpaired);
@@ -330,10 +342,19 @@ mod tests {
 
     #[test]
     fn login_peer_refreshes_existing_row_and_keeps_pairing_state() {
-        let db = ChatDb::open(&unique_tmp_dir("login-paired").join("local_chat.db")).expect("open db");
+        let db =
+            ChatDb::open(&unique_tmp_dir("login-paired").join("local_chat.db")).expect("open db");
         seed_peer(&db, "p1", PeerStatus::Paired, "chat-key");
 
-        db.login_peer("p1", "Pixel 9", "192.168.1.20", 8443, DeviceType::Phone, "tok2", "");
+        db.login_peer(
+            "p1",
+            "Pixel 9",
+            "192.168.1.20",
+            8443,
+            DeviceType::Phone,
+            "tok2",
+            "",
+        );
 
         let peer = db.get_peer_by_id("p1").expect("peer still exists");
         assert_eq!(peer.status, PeerStatus::Paired);
@@ -345,12 +366,22 @@ mod tests {
     #[test]
     fn logout_peer_clears_token_and_drops_from_login_list() {
         let db = ChatDb::open(&unique_tmp_dir("logout").join("local_chat.db")).expect("open db");
-        db.login_peer("p1", "Pixel 9", "192.168.1.10", 8443, DeviceType::Phone, "tok1", "sig1");
+        db.login_peer(
+            "p1",
+            "Pixel 9",
+            "192.168.1.10",
+            8443,
+            DeviceType::Phone,
+            "tok1",
+            "sig1",
+        );
         assert_eq!(db.get_login_peers().len(), 1);
 
         db.logout_peer("p1");
 
-        let peer = db.get_peer_by_id("p1").expect("row kept, only token cleared");
+        let peer = db
+            .get_peer_by_id("p1")
+            .expect("row kept, only token cleared");
         assert_eq!(peer.token, "");
         assert!(db.get_login_peers().is_empty());
     }
@@ -358,7 +389,15 @@ mod tests {
     #[test]
     fn update_peer_name_renames_only() {
         let db = ChatDb::open(&unique_tmp_dir("rename").join("local_chat.db")).expect("open db");
-        db.login_peer("p1", "old", "192.168.1.10", 8443, DeviceType::Phone, "tok1", "sig1");
+        db.login_peer(
+            "p1",
+            "old",
+            "192.168.1.10",
+            8443,
+            DeviceType::Phone,
+            "tok1",
+            "sig1",
+        );
 
         db.update_peer_name("p1", "new-name");
 

@@ -1,17 +1,17 @@
 #![allow(non_snake_case)]
 
+#[path = "firewall.rs"]
+pub(crate) mod mdns_firewall;
 #[path = "NearbyDiscoverManager.rs"]
 mod nearby_discover_manager;
 #[path = "PeerStatusManager.rs"]
 mod peer_status_manager;
-#[path = "firewall.rs"]
-pub(crate) mod mdns_firewall;
 
-pub use nearby_discover_manager::NearbyDiscoverManager;
-pub use peer_status_manager::PeerStatusManager;
-pub use mdns_firewall::MdnsFirewallStatus;
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
+pub use mdns_firewall::MdnsFirewallStatus;
+pub use nearby_discover_manager::NearbyDiscoverManager;
+pub use peer_status_manager::PeerStatusManager;
 pub(crate) use plain_rs::mdns::host_responder::get_best_ip as discover_get_best_ip;
 pub(crate) use plain_rs::mdns::host_responder::local_ipv4_strs as discover_local_ipv4_strs;
 

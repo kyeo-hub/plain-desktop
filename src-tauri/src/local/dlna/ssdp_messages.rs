@@ -6,22 +6,51 @@ pub const AVT_TYPE: &str = "urn:schemas-upnp-org:service:AVTransport:1";
 pub fn alive_messages(uuid: &str, ip: &str, port: u16) -> Vec<String> {
     vec![
         notify_msg(uuid, "upnp:rootdevice", "ssdp:alive", ip, port),
-        notify_msg(&format!("{uuid}::{DEVICE_TYPE}"), DEVICE_TYPE, "ssdp:alive", ip, port),
-        notify_msg(&format!("{uuid}::{AVT_TYPE}"), AVT_TYPE, "ssdp:alive", ip, port),
+        notify_msg(
+            &format!("{uuid}::{DEVICE_TYPE}"),
+            DEVICE_TYPE,
+            "ssdp:alive",
+            ip,
+            port,
+        ),
+        notify_msg(
+            &format!("{uuid}::{AVT_TYPE}"),
+            AVT_TYPE,
+            "ssdp:alive",
+            ip,
+            port,
+        ),
     ]
 }
 
 pub fn byebye_messages(uuid: &str, ip: &str, port: u16) -> Vec<String> {
     vec![
         notify_msg(uuid, "upnp:rootdevice", "ssdp:byebye", ip, port),
-        notify_msg(&format!("{uuid}::{DEVICE_TYPE}"), DEVICE_TYPE, "ssdp:byebye", ip, port),
-        notify_msg(&format!("{uuid}::{AVT_TYPE}"), AVT_TYPE, "ssdp:byebye", ip, port),
+        notify_msg(
+            &format!("{uuid}::{DEVICE_TYPE}"),
+            DEVICE_TYPE,
+            "ssdp:byebye",
+            ip,
+            port,
+        ),
+        notify_msg(
+            &format!("{uuid}::{AVT_TYPE}"),
+            AVT_TYPE,
+            "ssdp:byebye",
+            ip,
+            port,
+        ),
     ]
 }
 
 pub fn search_responses(uuid: &str, ip: &str, port: u16) -> Vec<String> {
     vec![
-        search_response("upnp:rootdevice", &format!("{uuid}::upnp:rootdevice"), ip, port),
+        search_response(
+            "upnp:rootdevice",
+            &format!("{uuid}::upnp:rootdevice"),
+            ip,
+            port,
+        ),
         search_response(DEVICE_TYPE, &format!("{uuid}::{DEVICE_TYPE}"), ip, port),
         search_response(AVT_TYPE, &format!("{uuid}::{AVT_TYPE}"), ip, port),
     ]

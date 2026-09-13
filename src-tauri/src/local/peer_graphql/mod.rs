@@ -20,13 +20,13 @@ mod schema;
 use std::sync::Arc;
 use tokio::io::AsyncWrite;
 
-use plain_rs::xchacha_encrypt_raw;
 use crate::local::graphql::context::AppCtx;
 use crate::local::server::response::respond;
+use plain_rs::xchacha_encrypt_raw;
 
 pub use auth::authenticate;
 pub use context::PeerCtx;
-pub use schema::{build_schema, PeerSchema};
+pub use schema::{PeerSchema, build_schema};
 
 /// Handle a fully-parsed `POST /peer_graphql` request.
 ///
@@ -93,8 +93,8 @@ pub async fn handle<W>(
                 .data(peer_ctx),
         )
         .await;
-    let response_json = serde_json::to_value(&response)
-        .unwrap_or_else(|_| serde_json::json!({ "data": null }));
+    let response_json =
+        serde_json::to_value(&response).unwrap_or_else(|_| serde_json::json!({ "data": null }));
 
     // ── 3. Encrypt and respond ───────────────────────────────────────────
     let response_text = response_json.to_string();

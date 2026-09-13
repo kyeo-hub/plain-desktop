@@ -18,10 +18,10 @@
 //! After a successful handshake the peer is written to the `peers` table and the
 //! ChatDb's key-cache is considered stale (callers should re-query `get_peers`).
 
-use super::db::{now_iso, ChatDb, DPeer};
-use plain_rs::{base64_decode, base64_encode, ed25519_sign, ed25519_verify, EcdhSession};
+use super::db::{ChatDb, DPeer, now_iso};
 use crate::local::enums::{DeviceType, PeerStatus};
 use crate::prefs::AppIdentity;
+use plain_rs::{EcdhSession, base64_decode, base64_encode, ed25519_sign, ed25519_verify};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;

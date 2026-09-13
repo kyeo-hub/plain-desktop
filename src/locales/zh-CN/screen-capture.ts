@@ -2,28 +2,18 @@ import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localiz
 
 export default {
   screen_capture: {
-    a11y: {
-      toolbar: '截图工具',
-      annotationTools: '标注工具',
-      history: '历史记录',
-      colors: '颜色',
-      strokeWidth: '线条粗细',
-      actions: '截图操作',
-      capturedScreen: '已截取的屏幕',
-      annotations: '截图标注',
-      resizeSelection: '调整选区大小 {handle}',
-      annotationText: '标注文字',
-      color: '颜色 {color}',
-      strokeWidthOption: '线条粗细 {width}',
-    },
-    tools: { rectangle: '矩形', ellipse: '椭圆', arrow: '箭头', pen: '画笔', text: '文字', mosaic: '马赛克' },
-    actions: { undo: '撤销', redo: '重做', save: '保存', copy: '复制', cancel: '取消', confirm: '确认', openChatToSend: '打开聊天后发送' },
-    status: { saving: '正在保存截图…', copying: '正在复制截图…', sending: '正在发送截图…', cancelling: '正在取消截图…' },
-    errors: {
-      saveFailed: '无法保存截图，请重试。',
-      copyFailed: '无法复制截图，请重试。',
-      sendFailed: '无法发送截图，请重试。',
-      cancelFailed: '无法取消截图，请重试。',
+    ui: {
+      menuA11y: "截图选项",
+      shortcutSettings: "快捷键设置",
+      openPermissionSettings: "屏幕录制权限",
+      shortcutCurrent: "当前快捷键",
+      shortcutRecording: "按下新的快捷键…",
+      shortcutRecordHint: "点击后按下组合键",
+      shortcutInvalidKey: "请使用字母、数字或 F 键，并至少带一个修饰键",
+      shortcutConflictHint: "如果快捷键无响应，可能被微信、QQ 等应用占用，请换一个组合。",
+      shortcutReset: "恢复默认",
+      shortcutSave: "保存",
+      shortcutSaveFailed: "快捷键保存失败，请重试。",
     },
   },
 } satisfies CaptureLocaleModule

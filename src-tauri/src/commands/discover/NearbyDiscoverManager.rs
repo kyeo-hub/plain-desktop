@@ -322,8 +322,15 @@ impl NearbyDiscoverManager {
         signature_public_key: &str,
     ) {
         let (ip, port) = split_host(host);
-        self.db
-            .login_peer(id, name, &ip, port, device_type, token, signature_public_key);
+        self.db.login_peer(
+            id,
+            name,
+            &ip,
+            port,
+            device_type,
+            token,
+            signature_public_key,
+        );
     }
 
     pub fn logout_peer(&self, id: &str) {
@@ -421,14 +428,16 @@ impl NearbyDiscoverManager {
             .get_peer_by_id(&device.id)
             .filter(|p| p.is_paired() || !p.token.is_empty())
         else {
-            log::debug!("update_known_peer: {} not paired/logged-in, skip", device.id);
+            log::debug!(
+                "update_known_peer: {} not paired/logged-in, skip",
+                device.id
+            );
             return;
         };
         // mDNS announcements repeat every few seconds — skip the write when
         // nothing changed so the peers table isn't hammered by upserts.
         let ip = device.ips.join(",");
-        let device_type =
-            DeviceType::from_str(&device.device_type).unwrap_or(DeviceType::Other);
+        let device_type = DeviceType::from_str(&device.device_type).unwrap_or(DeviceType::Other);
         if peer.name == device.name
             && peer.ip == ip
             && peer.port == device.port
@@ -437,7 +446,12 @@ impl NearbyDiscoverManager {
             return;
         }
         let old_addr = format!("{}:{}", peer.best_ip(), peer.port);
-        log::info!("update_known_peer: {} address {} -> {}", device.id, old_addr, ip);
+        log::info!(
+            "update_known_peer: {} address {} -> {}",
+            device.id,
+            old_addr,
+            ip
+        );
         peer.name = device.name.clone();
         peer.ip = ip;
         peer.port = device.port;
@@ -555,4 +569,3 @@ mod tests {
         );
     }
 }
-

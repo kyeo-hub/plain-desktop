@@ -8,18 +8,18 @@ use tauri::{
 
 use super::backend::capture_frame_at_cursor_exclusive;
 use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CaptureResultSubmission,
-    CaptureTarget, CapturedFrame, CssRect, MAX_PNG_RESULT_BYTES, NativeCapturePhase,
+    CaptureResultDescriptor, CaptureResultSubmission, CaptureTarget, CapturedFrame,
+    MAX_PNG_RESULT_BYTES, NativeCapturePhase,
 };
 use super::export::{SaveCaptureOutcome, TauriCaptureExportPort, stable_png_filename};
 use super::ipc::{raw_response, require_raw_body};
-use super::platform::XcapBackend;
 use super::runtime::{
     CapturePublishOutcome, CaptureStartResponse, CaptureTicket, CaptureTimeoutKind, OverlayInit,
     ScreenCaptureRuntime, acquire_and_publish_once, is_overlay_window_label,
     is_regular_window_label,
 };
 use super::window::TauriCaptureWindowPort;
+use crate::capture::{CaptureError, CaptureErrorCode, CssRect};
 
 pub const RESULT_SESSION_HEADER: &str = "x-plain-capture-session-id";
 pub const RESULT_GENERATION_HEADER: &str = "x-plain-capture-overlay-generation";
@@ -82,7 +82,7 @@ pub async fn screen_capture_request_permission(
     authorize_permission_command_caller(window.label())?;
     #[cfg(target_os = "macos")]
     {
-        return tauri::async_runtime::spawn_blocking(super::platform::request_capture_permission)
+        return tauri::async_runtime::spawn_blocking(crate::capture::request_capture_permission)
             .await
             .map_err(|error| {
                 CaptureError::new(
@@ -99,9 +99,7 @@ pub async fn screen_capture_request_permission(
 }
 
 #[tauri::command]
-pub fn screen_capture_open_permission_settings(
-    window: WebviewWindow,
-) -> Result<(), CaptureError> {
+pub fn screen_capture_open_permission_settings(window: WebviewWindow) -> Result<(), CaptureError> {
     authorize_permission_command_caller(window.label())?;
     #[cfg(target_os = "macos")]
     {
@@ -122,6 +120,30 @@ pub fn screen_capture_open_permission_settings(
         CaptureErrorCode::CaptureFailed,
         "screen capture permission settings are available only on macOS",
     ))
+}
+
+#[tauri::command]
+pub fn screen_capture_shortcut_status() -> super::shortcut::CaptureShortcutStatus {
+    super::shortcut::snapshot_status()
+}
+
+#[tauri::command]
+pub async fn screen_capture_set_shortcut(
+    window: WebviewWindow,
+    accelerator: Option<String>,
+) -> Result<super::shortcut::CaptureShortcutStatus, CaptureError> {
+    authorize_permission_command_caller(window.label())?;
+    let app = window.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        super::shortcut::apply_shortcut_change(&app, accelerator)
+    })
+    .await
+    .map_err(|error| {
+        CaptureError::new(
+            CaptureErrorCode::CaptureFailed,
+            format!("screen capture shortcut worker failed: {error}"),
+        )
+    })
 }
 
 #[tauri::command]
@@ -218,7 +240,7 @@ pub async fn screen_capture_start(
     log::info!("screen capture start entered caller={caller_window_label}");
     let result: Result<CaptureStartResponse, CaptureError> = async {
         let app = window.app_handle().clone();
-        tauri::async_runtime::spawn_blocking(super::platform::preflight_capture_permission)
+        tauri::async_runtime::spawn_blocking(crate::capture::preflight_capture_permission)
             .await
             .map_err(|error| {
                 CaptureError::new(
@@ -378,12 +400,27 @@ pub fn screen_capture_frame_presented(
     session_id: String,
     overlay_generation: u64,
 ) -> Result<(), CaptureError> {
+    let caller_window_label = window.label().to_string();
     let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
-    let result = runtime.frame_presented(window.label(), &session_id, overlay_generation, &windows);
+    let result = runtime.frame_presented(
+        &caller_window_label,
+        &session_id,
+        overlay_generation,
+        &windows,
+    );
     log::info!(
         "screen capture overlay presentation acknowledgment success={}",
         result.is_ok()
     );
+    #[cfg(all(debug_assertions, target_os = "macos"))]
+    if result.is_ok() && super::selftest::armed() {
+        super::selftest::schedule_presentation_probe(
+            window.app_handle().clone(),
+            session_id.clone(),
+            caller_window_label,
+            overlay_generation,
+        );
+    }
     result
 }
 
@@ -411,20 +448,20 @@ async fn macos_overlay_work_area(window: &WebviewWindow) -> Result<Option<CssRec
                 };
                 let frame = screen.frame();
                 let visible = screen.visibleFrame();
-                super::platform::bottom_left_visible_frame_to_top_left_area(
-                    super::contract::LogicalPoint {
+                crate::capture::bottom_left_visible_frame_to_top_left_area(
+                    crate::capture::LogicalPoint {
                         x: frame.origin.x,
                         y: frame.origin.y,
                     },
-                    super::contract::LogicalSize {
+                    crate::capture::LogicalSize {
                         width: frame.size.width,
                         height: frame.size.height,
                     },
-                    super::contract::LogicalPoint {
+                    crate::capture::LogicalPoint {
                         x: visible.origin.x,
                         y: visible.origin.y,
                     },
-                    super::contract::LogicalSize {
+                    crate::capture::LogicalSize {
                         width: visible.size.width,
                         height: visible.size.height,
                     },
@@ -461,20 +498,20 @@ fn native_overlay_work_area(window: &WebviewWindow) -> Result<Option<CssRect>, C
     let frame_origin = monitor.position();
     let frame_size = monitor.size();
     let work_area = monitor.work_area();
-    super::platform::top_left_physical_work_area_to_local_css(
-        super::contract::PhysicalPoint {
+    crate::capture::top_left_physical_work_area_to_local_css(
+        crate::capture::PhysicalPoint {
             x: frame_origin.x,
             y: frame_origin.y,
         },
-        super::contract::PhysicalSize {
+        crate::capture::PhysicalSize {
             width: frame_size.width,
             height: frame_size.height,
         },
-        super::contract::PhysicalPoint {
+        crate::capture::PhysicalPoint {
             x: work_area.position.x,
             y: work_area.position.y,
         },
-        super::contract::PhysicalSize {
+        crate::capture::PhysicalSize {
             width: work_area.size.width,
             height: work_area.size.height,
         },
@@ -712,6 +749,10 @@ pub fn screen_capture_cancel(
     session_id: String,
     overlay_generation: Option<u64>,
 ) -> Result<(), CaptureError> {
+    log::info!(
+        "screen capture cancel entered caller={} session={session_id}",
+        window.label()
+    );
     let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
     runtime.cancel_from_window(window.label(), &session_id, overlay_generation, &windows)
 }
@@ -722,6 +763,10 @@ pub fn screen_capture_unavailable(
     runtime: State<'_, ScreenCaptureRuntime>,
     overlay_generation: u64,
 ) -> Result<OverlayInit, CaptureError> {
+    log::info!(
+        "screen capture unavailable entered caller={} generation={overlay_generation}",
+        window.label()
+    );
     let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
     runtime.overlay_unavailable(window.label(), overlay_generation, &windows)
 }
@@ -810,17 +855,43 @@ pub(crate) async fn finish_reserved_capture<R: Runtime>(
     Ok(outcome)
 }
 
+#[cfg(target_os = "linux")]
+fn portal_display_geometries<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<Vec<DisplayInfo>, CaptureError> {
+    use crate::capture::linux::wayland::MonitorSnapshot;
+
+    let snapshots: Vec<MonitorSnapshot> = app
+        .available_monitors()
+        .map_err(|_| {
+            CaptureError::new(
+                CaptureErrorCode::NoMonitor,
+                "could not enumerate monitors for the desktop portal",
+            )
+        })?
+        .into_iter()
+        .map(|monitor| MonitorSnapshot {
+            name: monitor.name().cloned(),
+            physical_origin: (monitor.position().x, monitor.position().y),
+            physical_size: (monitor.size().width, monitor.size().height),
+            scale_factor: monitor.scale_factor(),
+        })
+        .collect();
+    crate::capture::linux::wayland::display_geometries_from_snapshots(snapshots)
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
 async fn acquire_native_frame<R: Runtime>(
     app: AppHandle<R>,
     session_id: String,
 ) -> Result<CapturedFrame, CaptureError> {
     #[cfg(target_os = "linux")]
-    if super::platform::wayland_cursor_is_unavailable(
+    if crate::capture::wayland_cursor_is_unavailable(
         std::env::var("XDG_SESSION_TYPE").ok().as_deref(),
         std::env::var_os("WAYLAND_DISPLAY").is_some(),
     ) {
-        let monitors = super::wayland::available_monitor_geometries(&app)?;
-        let (monitor, native) = super::wayland::capture_monitor_via_portal(
+        let monitors = portal_display_geometries(&app)?;
+        let (monitor, native) = crate::capture::linux::wayland::capture_monitor_via_portal(
             monitors,
             PORTAL_INTERACTION_TIMEOUT,
             PORTAL_FRAME_TIMEOUT,
@@ -836,9 +907,10 @@ async fn acquire_native_frame<R: Runtime>(
         );
     }
 
+    let exclude = super::window::overlay_native_window_ids(&app);
     tauri::async_runtime::spawn_blocking(move || {
-        let backend = XcapBackend::new(app);
-        capture_frame_at_cursor_exclusive(&backend, &session_id)
+        let backend = crate::capture::platform_capture()?;
+        capture_frame_at_cursor_exclusive(backend.as_ref(), &session_id, &exclude)
     })
     .await
     .map_err(|_| {

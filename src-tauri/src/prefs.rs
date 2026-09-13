@@ -1,8 +1,8 @@
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
-use plain_rs::{base64_encode, ed25519_generate, gen_token};
 use plain_rs::short_uuid;
+use plain_rs::{base64_encode, ed25519_generate, gen_token};
 
 pub const STORE_FILE: &str = "prefs.json";
 
@@ -31,7 +31,12 @@ pub fn ensure_identity(handle: &AppHandle) -> AppIdentity {
     let device_name = store
         .get("device_name")
         .and_then(|v| v.as_str().map(String::from))
-        .map(|s| s.trim().trim_end_matches('.').trim_end_matches(".local").to_string())
+        .map(|s| {
+            s.trim()
+                .trim_end_matches('.')
+                .trim_end_matches(".local")
+                .to_string()
+        })
         .unwrap_or_else(|| {
             let name = default_device_name();
             store.set("device_name", name.as_str());
@@ -159,6 +164,25 @@ pub fn ensure_mdns_hostname(handle: &AppHandle) -> String {
     store.set("mdns_hostname", hostname.as_str());
     let _ = store.save();
     hostname
+}
+
+
+/// User-configured global capture accelerator; empty string means "platform
+/// default". The value is re-validated against the shortcut parser before use.
+pub fn get_capture_shortcut<R: tauri::Runtime>(handle: &AppHandle<R>) -> Option<String> {
+    handle
+        .store(STORE_FILE)
+        .ok()
+        .and_then(|s| s.get("capture_shortcut"))
+        .and_then(|v| v.as_str().map(String::from))
+        .filter(|v| !v.trim().is_empty())
+}
+
+pub fn set_capture_shortcut<R: tauri::Runtime>(handle: &AppHandle<R>, value: Option<&str>) {
+    if let Ok(store) = handle.store(STORE_FILE) {
+        store.set("capture_shortcut", value.unwrap_or(""));
+        let _ = store.save();
+    }
 }
 
 pub fn set_mdns_hostname(handle: &AppHandle, hostname: &str) {
@@ -291,9 +315,11 @@ mod tests {
         for _ in 0..100 {
             let label = random_mdns_hostname_label();
             assert_eq!(label.len(), 2);
-            assert!(label
-                .chars()
-                .all(|c| MDNS_HOSTNAME_CHARS.contains(&(c as u8))));
+            assert!(
+                label
+                    .chars()
+                    .all(|c| MDNS_HOSTNAME_CHARS.contains(&(c as u8)))
+            );
         }
     }
 }

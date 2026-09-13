@@ -27,7 +27,9 @@ use std::path::Path;
 use async_graphql::{Context, Object, Result as GqlResult};
 
 use crate::local::graphql::context::AppCtx;
-use crate::local::graphql::schema::types::{AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, Tag, VideoFileInfo};
+use crate::local::graphql::schema::types::{
+    AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, Tag, VideoFileInfo,
+};
 use crate::local::server::uri::resolve_uri;
 
 #[derive(Default)]
@@ -156,10 +158,7 @@ fn is_image_ext(ext: &str) -> bool {
 }
 
 fn is_video_ext(ext: &str) -> bool {
-    matches!(
-        ext,
-        "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "3gp"
-    )
+    matches!(ext, "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "3gp")
 }
 
 fn is_audio_ext(ext: &str) -> bool {
@@ -176,8 +175,10 @@ fn load_image(path: &Path, ext: &str) -> Option<ImageFileInfo> {
     let bytes = std::fs::read(path).ok()?;
     let (width, height) = plain_rs::utils::image_dimensions::dimensions(&bytes)?;
     let location = if matches!(ext, "jpg" | "jpeg" | "tif" | "tiff") {
-        plain_rs::utils::image_dimensions::exif_gps(&bytes)
-            .map(|(latitude, longitude)| Location { latitude, longitude })
+        plain_rs::utils::image_dimensions::exif_gps(&bytes).map(|(latitude, longitude)| Location {
+            latitude,
+            longitude,
+        })
     } else {
         None
     };
@@ -192,8 +193,6 @@ fn load_image(path: &Path, ext: &str) -> Option<ImageFileInfo> {
 mod tests {
     use super::*;
 
-
-
     #[test]
     fn leap_year() {
         assert!(is_leap(2000));
@@ -201,5 +200,4 @@ mod tests {
         assert!(!is_leap(2023));
         assert!(!is_leap(1900));
     }
-
 }

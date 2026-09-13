@@ -1,10 +1,12 @@
 use async_graphql::{Enum, InputObject, SimpleObject, Union};
 use serde_json::Value;
 
-use plain_rs::xchacha_encrypt;
 use crate::local::db::{DAppFile, DBookmark, DBookmarkGroup, DChannel, DChat, DPeer};
-use crate::local::enums::{AppChannelType, ChannelStatus, ChatStatus, DeviceType, DriveType, MemberStatus, PeerStatus};
+use crate::local::enums::{
+    AppChannelType, ChannelStatus, ChatStatus, DeviceType, DriveType, MemberStatus, PeerStatus,
+};
 use plain_rs::base64_encode;
+use plain_rs::xchacha_encrypt;
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
@@ -647,20 +649,17 @@ mod tests {
         })
         .to_string();
 
-        let data = chat_item_data_from_content(&content, &token_b64)
-            .expect("should parse content");
+        let data = chat_item_data_from_content(&content, &token_b64).expect("should parse content");
         let ids = match data {
             ChatItemData::MessageImages(m) => m.ids,
             _ => panic!("expected MessageImages"),
         };
         assert_eq!(ids.len(), 2);
 
-        for (i, expected) in
-            ["fid:00112233.jpg", "fid:ffeeddcc.png"].iter().enumerate()
-        {
+        for (i, expected) in ["fid:00112233.jpg", "fid:ffeeddcc.png"].iter().enumerate() {
             let expected_name = if i == 0 { "first.jpg" } else { "second.png" };
-            let plaintext = xchacha_decrypt(&token_b64, &base64_decode(&ids[i]))
-                .expect("must decrypt");
+            let plaintext =
+                xchacha_decrypt(&token_b64, &base64_decode(&ids[i])).expect("must decrypt");
             let v: serde_json::Value = serde_json::from_slice(&plaintext).unwrap();
             assert_eq!(v["path"], *expected);
             assert_eq!(v["name"], expected_name);

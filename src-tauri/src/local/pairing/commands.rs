@@ -1,5 +1,5 @@
-use super::protocol::PairingRequest;
 use super::PairingManager;
+use super::protocol::PairingRequest;
 
 /// Initiate pairing with a discovered device.
 #[tauri::command]

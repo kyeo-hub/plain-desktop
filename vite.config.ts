@@ -154,6 +154,9 @@ export default defineConfig(({ mode }) => {
     // as plain strings; `index.ts` composes the feature modules at runtime
     // and needs no compilation itself. Test projects don't inherit this
     // plugin, so vitest keeps runtime compilation.
+    //
+    // The capture overlay's own message set lives in `views/screen-capture/locales/`
+    // (see the README there), so it's outside this include glob and never precompiled.
     VueI18nPlugin({
       include: [path.resolve(__dirname, './src/locales/**/*.ts')],
       exclude: ['**/timeago.ts', '**/locales/**/index.ts'],

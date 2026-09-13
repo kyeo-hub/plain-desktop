@@ -101,7 +101,9 @@ impl FromSql for ChatStatus {
 
 // ── ChannelStatus ──────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
+)]
 #[graphql(name = "ChannelStatus", rename_items = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChannelStatus {
@@ -148,7 +150,9 @@ impl FromSql for ChannelStatus {
 
 // ── MemberStatus ───────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
+)]
 #[graphql(name = "MemberStatus", rename_items = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MemberStatus {
@@ -192,7 +196,9 @@ impl FromSql for MemberStatus {
 
 // ── DeviceType ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
+)]
 #[graphql(name = "DeviceType", rename_items = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeviceType {
@@ -255,7 +261,10 @@ impl FromSql for DeviceType {
 // ── ChannelSystemMessageType ──────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(name = "ChannelSystemMessageType", rename_items = "SCREAMING_SNAKE_CASE")]
+#[graphql(
+    name = "ChannelSystemMessageType",
+    rename_items = "SCREAMING_SNAKE_CASE"
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChannelSystemMessageType {
     Invite,
@@ -316,7 +325,10 @@ impl FromSql for ChannelSystemMessageType {
 // ── ChannelSystemMessageAction ────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(name = "ChannelSystemMessageAction", rename_items = "SCREAMING_SNAKE_CASE")]
+#[graphql(
+    name = "ChannelSystemMessageAction",
+    rename_items = "SCREAMING_SNAKE_CASE"
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChannelSystemMessageAction {
     Invite,

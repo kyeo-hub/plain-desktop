@@ -176,7 +176,7 @@ async fn handle(stream: TcpStream, http: reqwest::Client) {
                 // opts in), while Rust-client requests without Origin pass —
                 // the proxy is the device's trusted agent, not a web page.
                 "host" | "connection" | "transfer-encoding" | "x-proxy-target" | "origin" => {
-                    continue
+                    continue;
                 }
                 _ => {
                     if let (Ok(name), Ok(val)) = (
@@ -251,10 +251,9 @@ async fn handle(stream: TcpStream, http: reqwest::Client) {
                 head.extend_from_slice(format!("{}: {}\r\n", k.as_str(), vs).as_bytes());
             }
         }
-        if keep_alive
-            && let Some(len) = content_length {
-                head.extend_from_slice(format!("content-length: {}\r\n", len).as_bytes());
-            }
+        if keep_alive && let Some(len) = content_length {
+            head.extend_from_slice(format!("content-length: {}\r\n", len).as_bytes());
+        }
         head.extend_from_slice(b"\r\n");
         if wr.write_all(&head).await.is_err() {
             return;

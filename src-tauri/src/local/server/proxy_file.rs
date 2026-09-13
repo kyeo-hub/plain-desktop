@@ -4,10 +4,10 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use super::super::graphql::context::AppCtx;
 use super::response::respond;
-use plain_rs::xchacha_decrypt;
 use plain_rs::base64_decode;
 use plain_rs::http::CORS;
 use plain_rs::query::parse_query;
+use plain_rs::xchacha_decrypt;
 
 /// Proxy a peer file through the local server's `/proxyfs` endpoint.
 ///
@@ -62,9 +62,10 @@ pub(super) async fn proxy_file<W: AsyncWrite + Unpin>(
     //    so media seeking works through the proxy.
     let mut req = proxy_client().get(peer_url);
     if !range_header.is_empty()
-        && let Ok(v) = reqwest::header::HeaderValue::from_str(range_header) {
-            req = req.header("range", v);
-        }
+        && let Ok(v) = reqwest::header::HeaderValue::from_str(range_header)
+    {
+        req = req.header("range", v);
+    }
     let mut resp = match req.send().await {
         Ok(r) => r,
         Err(e) => {

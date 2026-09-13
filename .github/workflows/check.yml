@@ -111,6 +111,9 @@ jobs:
       - name: Run cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
+      - name: Assert the capture layer stays Tauri-free
+        run: '! grep -rn "tauri" src-tauri/src/capture/'
+
       - name: Run screen capture Rust tests
         run: 'cargo test --manifest-path src-tauri/Cargo.toml --lib commands::screen_capture::'
 

@@ -1,13 +1,13 @@
 pub mod app_file_store;
-pub mod chat_handler;
-pub mod chat_cacher;
 pub mod channel;
+pub mod chat_cacher;
+pub mod chat_handler;
 pub mod db;
-pub mod link_preview;
 pub mod dlna;
 pub mod download;
 pub mod enums;
 pub mod graphql;
+pub mod link_preview;
 pub mod pairing;
 pub mod peer_graphql;
 pub mod server;

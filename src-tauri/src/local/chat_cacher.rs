@@ -42,7 +42,8 @@ impl ChatCacher {
     /// 4. Keep the most recently updated chat per conversation ID.
     pub fn load(&self, db: &ChatDb) {
         let peer_ids: HashSet<String> = db.get_peers().iter().map(|p| p.id.clone()).collect();
-        let channel_ids: HashSet<String> = db.get_all_channels().iter().map(|c| c.id.clone()).collect();
+        let channel_ids: HashSet<String> =
+            db.get_all_channels().iter().map(|c| c.id.clone()).collect();
         let latest_chats = db.get_all_latest_chats();
 
         let mut chat_cache: HashMap<String, DChat> = HashMap::new();

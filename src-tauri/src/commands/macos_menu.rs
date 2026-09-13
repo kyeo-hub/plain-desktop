@@ -68,7 +68,9 @@ fn build_menu(app: &AppHandle, t: &MenuLabels) -> tauri::Result<Menu<Wry>> {
     let new_window = MenuItemBuilder::with_id("new-window", &t.new_window)
         .accelerator("CmdOrCtrl+Shift+N")
         .build(app)?;
-    let file_submenu = SubmenuBuilder::new(app, &t.file).item(&new_window).build()?;
+    let file_submenu = SubmenuBuilder::new(app, &t.file)
+        .item(&new_window)
+        .build()?;
 
     // ── Edit menu (standard items so cut/copy/paste/undo work) ───────────
     let edit_submenu = SubmenuBuilder::new(app, &t.edit)
@@ -100,7 +102,10 @@ fn build_menu(app: &AppHandle, t: &MenuLabels) -> tauri::Result<Menu<Wry>> {
         .item(&PredefinedMenuItem::maximize(app, Some(&t.maximize))?)
         .item(&toggle_fullscreen)
         .separator()
-        .item(&PredefinedMenuItem::close_window(app, Some(&t.close_window))?)
+        .item(&PredefinedMenuItem::close_window(
+            app,
+            Some(&t.close_window),
+        )?)
         .build()?;
 
     MenuBuilder::new(app)

@@ -2,28 +2,18 @@ import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localiz
 
 export default {
   screen_capture: {
-    a11y: {
-      toolbar: 'திரைப்பிடிப்பு கருவிகள்',
-      annotationTools: 'குறிப்புக் கருவிகள்',
-      history: 'வரலாறு',
-      colors: 'நிறங்கள்',
-      strokeWidth: 'கோட்டு அகலம்',
-      actions: 'பிடிப்பு செயல்கள்',
-      capturedScreen: 'பிடிக்கப்பட்ட திரை',
-      annotations: 'திரைப்பிடிப்பு குறிப்புகள்',
-      resizeSelection: 'தேர்வின் அளவை மாற்று {handle}',
-      annotationText: 'குறிப்பு உரை',
-      color: 'நிறம் {color}',
-      strokeWidthOption: 'கோட்டு அகலம் {width}',
-    },
-    tools: { rectangle: 'செவ்வகம்', ellipse: 'நீள்வட்டம்', arrow: 'அம்பு', pen: 'பேனா', text: 'உரை', mosaic: 'மொசைக்' },
-    actions: { undo: 'செயல்தவிர்', redo: 'மீண்டும் செய்', save: 'சேமி', copy: 'நகலெடு', cancel: 'ரத்துசெய்', confirm: 'உறுதிசெய்', openChatToSend: 'அனுப்ப ஒரு அரட்டையைத் திறக்கவும்' },
-    status: { saving: 'பிடிப்பு சேமிக்கப்படுகிறது…', copying: 'பிடிப்பு நகலெடுக்கப்படுகிறது…', sending: 'பிடிப்பு அனுப்பப்படுகிறது…', cancelling: 'பிடிப்பு ரத்துசெய்யப்படுகிறது…' },
-    errors: {
-      saveFailed: 'பிடிப்பைச் சேமிக்க முடியவில்லை. மீண்டும் முயலவும்.',
-      copyFailed: 'பிடிப்பை நகலெடுக்க முடியவில்லை. மீண்டும் முயலவும்.',
-      sendFailed: 'பிடிப்பை அனுப்ப முடியவில்லை. மீண்டும் முயலவும்.',
-      cancelFailed: 'பிடிப்பை ரத்துசெய்ய முடியவில்லை. மீண்டும் முயலவும்.',
+    ui: {
+      menuA11y: "ஸ்கிரீன் ஷாட் விருப்பங்கள்",
+      shortcutSettings: "குறுக்குவழி அமைப்புகள்",
+      openPermissionSettings: "திரை பதிவு அனுமதி",
+      shortcutCurrent: "தற்போதைய குறுக்குவழி",
+      shortcutRecording: "புதிய குறுக்குவழியை அழுத்தவும்…",
+      shortcutRecordHint: "கிளிக் செய்து விசை சேர்க்கையை அழுத்தவும்",
+      shortcutInvalidKey: "குறைந்தது ஒரு மாற்றி விசையுடன் எழுத்து, எண் அல்லது F-விசையைப் பயன்படுத்தவும்",
+      shortcutConflictHint: "குறுக்குவழி செயல்படவில்லை என்றால் வேறு பயன்பாடு (WeChat, QQ…) பயன்படுத்துகிறது — வேறு சேர்க்கையைத் தேர்வுசெய்க.",
+      shortcutReset: "இயல்புநிலைக்கு மீட்டமை",
+      shortcutSave: "சேமி",
+      shortcutSaveFailed: "குறுக்குவழியைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
     },
   },
 } satisfies CaptureLocaleModule

@@ -18,7 +18,11 @@ fn build_app_file_name_map(chats: &[crate::local::db::DChat]) -> HashMap<String,
         let Ok(v) = serde_json::from_str::<Value>(&chat.content) else {
             continue;
         };
-        let Some(items) = v.get("value").and_then(|vv| vv.get("items")).and_then(|i| i.as_array()) else {
+        let Some(items) = v
+            .get("value")
+            .and_then(|vv| vv.get("items"))
+            .and_then(|i| i.as_array())
+        else {
             continue;
         };
         for item in items {
@@ -33,14 +37,23 @@ fn build_app_file_name_map(chats: &[crate::local::db::DChat]) -> HashMap<String,
             }
             let hash = uri.strip_prefix("fid:").unwrap_or(uri);
             let key = hash.split('.').next().unwrap_or(hash);
-            map.entry(key.to_string()).or_insert_with(|| name.to_string());
+            map.entry(key.to_string())
+                .or_insert_with(|| name.to_string());
         }
     }
     map
 }
 
-fn resolve_display_name(file: &crate::local::db::DAppFile, name_map: &HashMap<String, String>) -> String {
-    let from_chat = name_map.get(&file.id).cloned().unwrap_or_default().trim().to_string();
+fn resolve_display_name(
+    file: &crate::local::db::DAppFile,
+    name_map: &HashMap<String, String>,
+) -> String {
+    let from_chat = name_map
+        .get(&file.id)
+        .cloned()
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     if !from_chat.is_empty() {
         return from_chat;
     }
@@ -56,8 +69,7 @@ fn resolve_display_name(file: &crate::local::db::DAppFile, name_map: &HashMap<St
 impl ChatQuery {
     async fn chat_items(&self, ctx: &Context<'_>, id: String) -> Vec<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db
-            .get_chats(&id)
+        c.db.get_chats(&id)
             .into_iter()
             .map(|chat| ChatItem::with_data(chat, &c.token))
             .collect()
@@ -65,8 +77,7 @@ impl ChatQuery {
 
     async fn chat_item(&self, ctx: &Context<'_>, id: String) -> Option<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db
-            .get_chat_by_id(&id)
+        c.db.get_chat_by_id(&id)
             .map(|chat| ChatItem::with_data(chat, &c.token))
     }
 
@@ -80,8 +91,7 @@ impl ChatQuery {
 
     async fn peers(&self, ctx: &Context<'_>) -> Vec<Peer> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db
-            .get_peers()
+        c.db.get_peers()
             .into_iter()
             .map(|p| {
                 let online = c.peer_status.is_online(&p.id);
@@ -92,8 +102,7 @@ impl ChatQuery {
 
     async fn latest_chat_items(&self, ctx: &Context<'_>) -> Vec<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db
-            .get_all_latest_chats()
+        c.db.get_all_latest_chats()
             .into_iter()
             .map(|chat| ChatItem::with_data(chat, &c.token))
             .collect()

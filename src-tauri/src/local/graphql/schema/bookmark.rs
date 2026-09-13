@@ -1,10 +1,10 @@
-use async_graphql::{Context, Object, ID};
+use async_graphql::{Context, ID, Object};
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::local::db::{now_iso, DBookmark, DBookmarkGroup};
+use crate::local::db::{DBookmark, DBookmarkGroup, now_iso};
 
-use super::super::context::{AppCtx, WsEvent, WS_BOOKMARK_UPDATED};
+use super::super::context::{AppCtx, WS_BOOKMARK_UPDATED, WsEvent};
 use super::types::{Bookmark, BookmarkGroup, BookmarkInput};
 
 fn bookmark_to_json(b: &DBookmark) -> serde_json::Value {

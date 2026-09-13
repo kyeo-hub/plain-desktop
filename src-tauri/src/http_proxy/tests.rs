@@ -162,7 +162,10 @@ async fn handle_strips_origin_but_forwards_custom_headers() {
     let mut response = Vec::new();
     client.read_to_end(&mut response).await.unwrap();
     let echoed_head = String::from_utf8_lossy(&response);
-    assert!(echoed_head.contains("c-id: client-1"), "custom header must be forwarded");
+    assert!(
+        echoed_head.contains("c-id: client-1"),
+        "custom header must be forwarded"
+    );
     assert!(
         !echoed_head.to_lowercase().contains("\r\norigin:"),
         "origin header must be stripped before forwarding, got: {echoed_head}"

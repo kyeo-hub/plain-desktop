@@ -2,28 +2,18 @@ import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localiz
 
 export default {
   screen_capture: {
-    a11y: {
-      toolbar: 'Herramientas de captura de pantalla',
-      annotationTools: 'Herramientas de anotación',
-      history: 'Historial',
-      colors: 'Colores',
-      strokeWidth: 'Ancho del trazo',
-      actions: 'Acciones de captura',
-      capturedScreen: 'Pantalla capturada',
-      annotations: 'Anotaciones de captura de pantalla',
-      resizeSelection: 'Cambiar tamaño de la selección {handle}',
-      annotationText: 'Texto de anotación',
-      color: 'Color {color}',
-      strokeWidthOption: 'Ancho del trazo {width}',
-    },
-    tools: { rectangle: 'Rectángulo', ellipse: 'Elipse', arrow: 'Flecha', pen: 'Lápiz', text: 'Texto', mosaic: 'Mosaico' },
-    actions: { undo: 'Deshacer', redo: 'Rehacer', save: 'Guardar', copy: 'Copiar', cancel: 'Cancelar', confirm: 'Confirmar', openChatToSend: 'Abre un chat para enviar' },
-    status: { saving: 'Guardando captura…', copying: 'Copiando captura…', sending: 'Enviando captura…', cancelling: 'Cancelando captura…' },
-    errors: {
-      saveFailed: 'No se pudo guardar la captura. Inténtalo de nuevo.',
-      copyFailed: 'No se pudo copiar la captura. Inténtalo de nuevo.',
-      sendFailed: 'No se pudo enviar la captura. Inténtalo de nuevo.',
-      cancelFailed: 'No se pudo cancelar la captura. Inténtalo de nuevo.',
+    ui: {
+      menuA11y: "Opciones de captura",
+      shortcutSettings: "Ajustes de atajo",
+      openPermissionSettings: "Permiso de grabación de pantalla",
+      shortcutCurrent: "Atajo actual",
+      shortcutRecording: "Pulsa la nueva combinación…",
+      shortcutRecordHint: "Haz clic y pulsa una combinación de teclas",
+      shortcutInvalidKey: "Usa una letra, un número o una tecla F con al menos un modificador",
+      shortcutConflictHint: "Si el atajo no responde, otra aplicación (WeChat, QQ…) puede estar usándolo: elige otra combinación.",
+      shortcutReset: "Restaurar valor predeterminado",
+      shortcutSave: "Guardar",
+      shortcutSaveFailed: "No se pudo guardar el atajo. Inténtalo de nuevo.",
     },
   },
 } satisfies CaptureLocaleModule

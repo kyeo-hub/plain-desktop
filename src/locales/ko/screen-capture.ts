@@ -2,28 +2,18 @@ import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localiz
 
 export default {
   screen_capture: {
-    a11y: {
-      toolbar: '화면 캡처 도구',
-      annotationTools: '주석 도구',
-      history: '기록',
-      colors: '색상',
-      strokeWidth: '선 두께',
-      actions: '캡처 작업',
-      capturedScreen: '캡처된 화면',
-      annotations: '화면 캡처 주석',
-      resizeSelection: '선택 영역 크기 조절 {handle}',
-      annotationText: '주석 텍스트',
-      color: '색상 {color}',
-      strokeWidthOption: '선 두께 {width}',
-    },
-    tools: { rectangle: '사각형', ellipse: '타원', arrow: '화살표', pen: '펜', text: '텍스트', mosaic: '모자이크' },
-    actions: { undo: '실행 취소', redo: '다시 실행', save: '저장', copy: '복사', cancel: '취소', confirm: '확인', openChatToSend: '보낼 채팅을 여세요' },
-    status: { saving: '캡처 저장 중…', copying: '캡처 복사 중…', sending: '캡처 전송 중…', cancelling: '캡처 취소 중…' },
-    errors: {
-      saveFailed: '캡처를 저장할 수 없습니다. 다시 시도하세요.',
-      copyFailed: '캡처를 복사할 수 없습니다. 다시 시도하세요.',
-      sendFailed: '캡처를 보낼 수 없습니다. 다시 시도하세요.',
-      cancelFailed: '캡처를 취소할 수 없습니다. 다시 시도하세요.',
+    ui: {
+      menuA11y: "스크린샷 옵션",
+      shortcutSettings: "단축키 설정",
+      openPermissionSettings: "화면 기록 권한",
+      shortcutCurrent: "현재 단축키",
+      shortcutRecording: "새 단축키를 누르세요…",
+      shortcutRecordHint: "클릭 후 키 조합을 누르세요",
+      shortcutInvalidKey: "영문, 숫자 또는 F 키에 보조 키를 하나 이상 조합하세요",
+      shortcutConflictHint: "단축키가 반응하지 않으면 WeChat, QQ 등 다른 앱이 사용 중일 수 있습니다. 다른 조합을 선택하세요.",
+      shortcutReset: "기본값으로 되돌리기",
+      shortcutSave: "저장",
+      shortcutSaveFailed: "단축키를 저장하지 못했습니다. 다시 시도하세요.",
     },
   },
 } satisfies CaptureLocaleModule

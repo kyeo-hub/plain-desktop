@@ -13,15 +13,15 @@ use tokio::sync::broadcast;
 
 use serde_json::json;
 
-use plain_rs::{base64_decode, ed25519_verify};
-use crate::local::db::{now_iso, ChatDb, DChannel, DPeer};
+use crate::local::db::{ChatDb, DChannel, DPeer, now_iso};
 use crate::local::enums::{
     ChannelStatus, ChannelSystemMessageAction, ChannelSystemMessageType, MemberStatus, PeerStatus,
 };
 use crate::local::graphql::context::{
-    channels_updated_payload, load_key_cache, ChannelKeyCache, PeerKeyCache, WsEvent,
-    WS_CHANNEL_INVITE_RECEIVED, WS_CHANNELS_UPDATED,
+    ChannelKeyCache, PeerKeyCache, WS_CHANNEL_INVITE_RECEIVED, WS_CHANNELS_UPDATED, WsEvent,
+    channels_updated_payload, load_key_cache,
 };
+use plain_rs::{base64_decode, ed25519_verify};
 
 use super::messages::*;
 
@@ -67,7 +67,15 @@ pub fn handle(
     channel_key_cache: &ChannelKeyCache,
 ) -> bool {
     let result = match msg_type {
-        ChannelSystemMessageType::Invite => handle_invite(db, client_id, from_id, payload, event_tx, peer_key_cache, channel_key_cache),
+        ChannelSystemMessageType::Invite => handle_invite(
+            db,
+            client_id,
+            from_id,
+            payload,
+            event_tx,
+            peer_key_cache,
+            channel_key_cache,
+        ),
         ChannelSystemMessageType::InviteAccept => handle_invite_accept(
             db,
             client_id,
@@ -152,9 +160,7 @@ fn handle_invite(
     {
         Some(k) if !k.is_empty() => k.clone(),
         _ => {
-            log::warn!(
-                "[channel] invite for {channel_id} has no owner memberPeerInfo — rejected"
-            );
+            log::warn!("[channel] invite for {channel_id} has no owner memberPeerInfo — rejected");
             return false;
         }
     };
@@ -166,9 +172,7 @@ fn handle_invite(
         client_id,
     );
     if !verify_channel_signature(&owner_pub_key, &sig_payload, &msg.signature) {
-        log::warn!(
-            "[channel] invite signature failed for {channel_id} from {from_id} — rejected"
-        );
+        log::warn!("[channel] invite signature failed for {channel_id} from {from_id} — rejected");
         return false;
     }
 
@@ -403,10 +407,7 @@ fn handle_invite_decline(db: &ChatDb, client_id: &str, from_id: &str, payload: &
     if !has_member(&members, from_id) {
         return false;
     }
-    let members: Vec<_> = members
-        .into_iter()
-        .filter(|m| m.id != from_id)
-        .collect();
+    let members: Vec<_> = members.into_iter().filter(|m| m.id != from_id).collect();
     ch.members = encode_members(&members);
     ch.version += 1;
     ch.updated_at = now_iso();
@@ -456,9 +457,7 @@ fn handle_update(db: &ChatDb, _client_id: &str, from_id: &str, payload: &str) ->
     let sig_payload =
         channel_message_payload(channel_id, version, ChannelSystemMessageAction::Update, "");
     if !verify_channel_signature(&owner_pub_key, &sig_payload, &msg.signature) {
-        log::warn!(
-            "[channel] update signature failed for {channel_id} from {from_id} — rejected"
-        );
+        log::warn!("[channel] update signature failed for {channel_id} from {from_id} — rejected");
         return false;
     }
 
@@ -542,9 +541,7 @@ fn handle_kick(db: &ChatDb, client_id: &str, from_id: &str, payload: &str) -> bo
         client_id,
     );
     if !verify_channel_signature(&owner_pub_key, &sig_payload, &msg.signature) {
-        log::warn!(
-            "[channel] kick signature failed for {channel_id} from {from_id} — rejected"
-        );
+        log::warn!("[channel] kick signature failed for {channel_id} from {from_id} — rejected");
         return false;
     }
 
@@ -652,7 +649,8 @@ mod tests {
     #[test]
     fn verify_channel_signature_roundtrip_and_tamper() {
         let (kp_bytes, vk_bytes) = ed25519_generate();
-        let payload = channel_message_payload("ch_5", 4, ChannelSystemMessageAction::Kick, "peer_d");
+        let payload =
+            channel_message_payload("ch_5", 4, ChannelSystemMessageAction::Kick, "peer_d");
         let sig = ed25519_sign(&kp_bytes, payload.as_bytes());
         let pub_key_b64 = base64_encode(&vk_bytes);
 
@@ -661,7 +659,8 @@ mod tests {
             "valid signature should verify"
         );
 
-        let tampered = channel_message_payload("ch_5", 99, ChannelSystemMessageAction::Kick, "peer_d");
+        let tampered =
+            channel_message_payload("ch_5", 99, ChannelSystemMessageAction::Kick, "peer_d");
         assert!(
             !verify_channel_signature(&pub_key_b64, &tampered, &sig),
             "tampered payload should fail verification"

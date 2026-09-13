@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::super::super::graphql::AppCtx;
-use plain_rs::{base64_decode, xchacha_decrypt_raw, ed25519_verify};
+use plain_rs::{base64_decode, ed25519_verify, xchacha_decrypt_raw};
 
 pub(super) async fn handle<S>(
     ws: tokio_tungstenite::WebSocketStream<S>,
@@ -61,7 +61,10 @@ pub(super) async fn handle<S>(
 /// Expected plaintext after ChaCha20 decryption: `{sig}|{timestamp_ms}|{cid}`
 /// where `sig` is an Ed25519 signature over `{timestamp_ms}{cid}`.
 fn authenticate_peer(peer_id: &str, payload: &[u8], ctx: &AppCtx) -> bool {
-    log::debug!("status_ws auth: peer_id={peer_id} payload_len={}", payload.len());
+    log::debug!(
+        "status_ws auth: peer_id={peer_id} payload_len={}",
+        payload.len()
+    );
     let Some(peer) = ctx.db.get_peer_by_id(peer_id) else {
         log::debug!("status_ws auth: peer not found peer_id={peer_id}");
         return false;
@@ -95,7 +98,10 @@ fn authenticate_peer(peer_id: &str, payload: &[u8], ctx: &AppCtx) -> bool {
     let signature = parts.next().unwrap_or_default();
     let timestamp = parts.next().unwrap_or_default();
     let client_id = parts.next().unwrap_or_default();
-    log::debug!("status_ws auth: sig_len={} timestamp={timestamp} client_id={client_id}", signature.len());
+    log::debug!(
+        "status_ws auth: sig_len={} timestamp={timestamp} client_id={client_id}",
+        signature.len()
+    );
     if client_id != peer_id {
         log::debug!("status_ws auth: client_id mismatch: got={client_id} expected={peer_id}");
         return false;

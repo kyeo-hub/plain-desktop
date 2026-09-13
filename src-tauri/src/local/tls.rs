@@ -6,9 +6,9 @@ use rustls_pemfile::{certs, private_key};
 use std::io::BufReader;
 use std::path::Path;
 use std::sync::Arc;
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 const CERT_FILE: &str = "local_server_cert.pem";
 const KEY_FILE: &str = "local_server_key.pem";

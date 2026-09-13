@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CapturedFrame,
-    CapturedFrameDescriptor, MAX_PNG_RESULT_BYTES, MAX_RAW_FRAME_BYTES,
+    CaptureResultDescriptor, CapturedFrame, CapturedFrameDescriptor, MAX_PNG_RESULT_BYTES,
 };
+use crate::capture::MAX_RAW_FRAME_BYTES;
+use crate::capture::{CaptureError, CaptureErrorCode};
 
 #[derive(Debug)]
 struct CaptureResult {
@@ -331,6 +332,6 @@ fn png_payload_matches(bytes: &[u8], width: u32, height: u32) -> bool {
         && bytes[16..20] == width.to_be_bytes()
         && bytes[20..24] == height.to_be_bytes();
     header_matches
-        && xcap::image::load_from_memory(bytes)
+        && image::load_from_memory(bytes)
             .is_ok_and(|decoded| decoded.width() == width && decoded.height() == height)
 }

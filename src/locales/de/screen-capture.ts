@@ -2,28 +2,18 @@ import type { CaptureLocaleModule } from '@/views/screen-capture/capture-localiz
 
 export default {
   screen_capture: {
-    a11y: {
-      toolbar: 'Werkzeuge für Bildschirmaufnahmen',
-      annotationTools: 'Anmerkungswerkzeuge',
-      history: 'Verlauf',
-      colors: 'Farben',
-      strokeWidth: 'Strichstärke',
-      actions: 'Aufnahmeaktionen',
-      capturedScreen: 'Aufgenommener Bildschirm',
-      annotations: 'Anmerkungen zur Bildschirmaufnahme',
-      resizeSelection: 'Auswahlgröße ändern {handle}',
-      annotationText: 'Anmerkungstext',
-      color: 'Farbe {color}',
-      strokeWidthOption: 'Strichstärke {width}',
-    },
-    tools: { rectangle: 'Rechteck', ellipse: 'Ellipse', arrow: 'Pfeil', pen: 'Stift', text: 'Text', mosaic: 'Mosaik' },
-    actions: { undo: 'Rückgängig', redo: 'Wiederholen', save: 'Speichern', copy: 'Kopieren', cancel: 'Abbrechen', confirm: 'Bestätigen', openChatToSend: 'Zum Senden einen Chat öffnen' },
-    status: { saving: 'Aufnahme wird gespeichert…', copying: 'Aufnahme wird kopiert…', sending: 'Aufnahme wird gesendet…', cancelling: 'Aufnahme wird abgebrochen…' },
-    errors: {
-      saveFailed: 'Die Aufnahme konnte nicht gespeichert werden. Bitte erneut versuchen.',
-      copyFailed: 'Die Aufnahme konnte nicht kopiert werden. Bitte erneut versuchen.',
-      sendFailed: 'Die Aufnahme konnte nicht gesendet werden. Bitte erneut versuchen.',
-      cancelFailed: 'Die Aufnahme konnte nicht abgebrochen werden. Bitte erneut versuchen.',
+    ui: {
+      menuA11y: "Screenshot-Optionen",
+      shortcutSettings: "Tastenkürzel-Einstellungen",
+      openPermissionSettings: "Bildschirmaufnahme-Berechtigung",
+      shortcutCurrent: "Aktuelles Kürzel",
+      shortcutRecording: "Neues Kürzel drücken…",
+      shortcutRecordHint: "Klicken und eine Tastenkombination drücken",
+      shortcutInvalidKey: "Buchstabe, Ziffer oder F-Taste mit mindestens einem Modifier verwenden",
+      shortcutConflictHint: "Reagiert das Kürzel nicht, verwendet es womöglich eine andere App (WeChat, QQ…) — bitte eine andere Kombination wählen.",
+      shortcutReset: "Auf Standard zurücksetzen",
+      shortcutSave: "Speichern",
+      shortcutSaveFailed: "Kürzel konnte nicht gespeichert werden. Bitte erneut versuchen.",
     },
   },
 } satisfies CaptureLocaleModule

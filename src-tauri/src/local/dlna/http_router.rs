@@ -41,7 +41,15 @@ pub async fn route(
     }
 
     if method == "POST" && (path.ends_with("control") || path.contains("AVTransport")) {
-        return handle_soap(state, headers, body, command_tx, allowed_senders, denied_senders).await;
+        return handle_soap(
+            state,
+            headers,
+            body,
+            command_tx,
+            allowed_senders,
+            denied_senders,
+        )
+        .await;
     }
 
     if method == "POST" && path.contains("RenderingControl") {
@@ -73,7 +81,10 @@ async fn handle_soap(
     allowed_senders: &[String],
     denied_senders: &[String],
 ) -> DlnaHttpResponse {
-    let soap_action = match headers.get("soapaction").or_else(|| headers.get("SOAPACTION")) {
+    let soap_action = match headers
+        .get("soapaction")
+        .or_else(|| headers.get("SOAPACTION"))
+    {
         Some(v) => v,
         None => {
             return DlnaHttpResponse {
@@ -81,7 +92,7 @@ async fn handle_soap(
                 content_type: None,
                 headers: vec![],
                 body: String::new(),
-            }
+            };
         }
     };
 
@@ -94,10 +105,19 @@ async fn handle_soap(
     let response_body = match action.as_str() {
         "SetAVTransportURI" => {
             let uri = params.get("CurrentURI").cloned().unwrap_or_default();
-            let meta = params.get("CurrentURIMetaData").cloned().unwrap_or_default();
+            let meta = params
+                .get("CurrentURIMetaData")
+                .cloned()
+                .unwrap_or_default();
             let raw_title = soap_handler::extract_title_from_didl_meta(&meta);
             let title = if raw_title.is_empty() {
-                uri.rsplit('/').next().unwrap_or(&uri).split('?').next().unwrap_or(&uri).to_string()
+                uri.rsplit('/')
+                    .next()
+                    .unwrap_or(&uri)
+                    .split('?')
+                    .next()
+                    .unwrap_or(&uri)
+                    .to_string()
             } else {
                 raw_title
             };
@@ -118,14 +138,16 @@ async fn handle_soap(
                 });
                 s.pending_play_queued = false;
                 drop(s);
-                receiver_engine::check_rules(state, allowed_senders, denied_senders, command_tx).await;
+                receiver_engine::check_rules(state, allowed_senders, denied_senders, command_tx)
+                    .await;
             }
             soap_handler::build_response("SetAVTransportURI", "")
         }
         "Play" => {
             log::debug!("DLNA Play");
             let s = state.read().await;
-            let has_pending = s.raw_pending_cast_request.is_some() || s.pending_cast_request.is_some();
+            let has_pending =
+                s.raw_pending_cast_request.is_some() || s.pending_cast_request.is_some();
             drop(s);
             if has_pending {
                 let mut s = state.write().await;
@@ -147,7 +169,9 @@ async fn handle_soap(
             let target = params.get("Target").cloned().unwrap_or_default();
             let pos_ms = soap_handler::parse_dlna_time_to_ms(&target);
             if pos_ms >= 0 {
-                let _ = command_tx.send(DlnaCommand::Seek { position_ms: pos_ms });
+                let _ = command_tx.send(DlnaCommand::Seek {
+                    position_ms: pos_ms,
+                });
             }
             soap_handler::build_response("Seek", "")
         }
@@ -208,7 +232,10 @@ fn http_ok_subscribe() -> DlnaHttpResponse {
     DlnaHttpResponse {
         status: 200,
         content_type: None,
-        headers: vec![("SID".to_string(), "uuid:dlna-plain-sub".to_string()), ("TIMEOUT".to_string(), "Second-3600".to_string())],
+        headers: vec![
+            ("SID".to_string(), "uuid:dlna-plain-sub".to_string()),
+            ("TIMEOUT".to_string(), "Second-3600".to_string()),
+        ],
         body: String::new(),
     }
 }

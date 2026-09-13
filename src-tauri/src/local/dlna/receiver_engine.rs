@@ -1,11 +1,11 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::net::UdpSocket;
-use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use crate::commands::discover::discover_local_ipv4_strs;
 use crate::local::dlna::renderer_state::DlnaRendererState;
@@ -83,7 +83,10 @@ impl DlnaEngine {
         });
         self.tasks.lock().unwrap().push(task);
 
-        log::info!("DlnaReceiverEngine started, port={port} uuid={}", self.device_uuid);
+        log::info!(
+            "DlnaReceiverEngine started, port={port} uuid={}",
+            self.device_uuid
+        );
     }
 
     pub async fn stop(&self) {
@@ -113,7 +116,12 @@ impl DlnaEngine {
         self.dispatch_accept(&pending, play_queued);
         if remember && !pending.sender_ip.is_empty() {
             prefs::remove_dlna_sender(handle, "dlna_denied_senders", &pending.sender_ip);
-            prefs::add_dlna_sender(handle, "dlna_allowed_senders", &pending.sender_ip, &pending.sender_name);
+            prefs::add_dlna_sender(
+                handle,
+                "dlna_allowed_senders",
+                &pending.sender_ip,
+                &pending.sender_name,
+            );
         }
     }
 
@@ -132,7 +140,12 @@ impl DlnaEngine {
         drop(s);
         if remember && !pending.sender_ip.is_empty() {
             prefs::remove_dlna_sender(handle, "dlna_allowed_senders", &pending.sender_ip);
-            prefs::add_dlna_sender(handle, "dlna_denied_senders", &pending.sender_ip, &pending.sender_name);
+            prefs::add_dlna_sender(
+                handle,
+                "dlna_denied_senders",
+                &pending.sender_ip,
+                &pending.sender_name,
+            );
         }
     }
 
@@ -322,6 +335,10 @@ fn generate_uuid() -> String {
     let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     format!(
         "{}-{}-{}-{}-{}",
-        &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32]
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
     )
 }

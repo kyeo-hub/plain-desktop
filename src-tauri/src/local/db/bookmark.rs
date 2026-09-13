@@ -1,7 +1,7 @@
 use rusqlite::params;
 
-use super::utils::{now_iso, short_id};
 use super::ChatDb;
+use super::utils::{now_iso, short_id};
 
 #[derive(Clone, Debug)]
 pub struct DBookmark {

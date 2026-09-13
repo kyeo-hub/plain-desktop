@@ -1,15 +1,15 @@
 //! Shared types, WebSocket event infrastructure, and resolver context.
 
-use plain_rs::base64_decode;
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::local::chat_cacher::ChatCacher;
 use crate::local::db::ChatDb;
 use crate::local::enums::ChannelStatus;
 use crate::local::pairing::PairingManager;
 use crate::prefs::AppIdentity;
+use plain_rs::base64_decode;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicU16;
+use std::sync::{Arc, RwLock};
 use tauri::AppHandle;
 use tokio::sync::broadcast;
 
@@ -88,11 +88,7 @@ pub fn refresh_peer_key_cache(db: &ChatDb, cache: &PeerKeyCache) {
 
 /// Rebuild both peer and channel key caches from the DB.
 /// Mirrors `ChatCacheManager.loadKeyCacheAsync()` in plain-app.
-pub fn load_key_cache(
-    db: &ChatDb,
-    peer_cache: &PeerKeyCache,
-    channel_cache: &ChannelKeyCache,
-) {
+pub fn load_key_cache(db: &ChatDb, peer_cache: &PeerKeyCache, channel_cache: &ChannelKeyCache) {
     refresh_peer_key_cache(db, peer_cache);
 
     let mut cm = channel_cache.write().unwrap();

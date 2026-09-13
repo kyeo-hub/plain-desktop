@@ -149,14 +149,22 @@ impl ChatDb {
         Ok(())
     }
 
-    fn ensure_column(conn: &Connection, table: &str, column: &str, definition: &str) -> rusqlite::Result<()> {
+    fn ensure_column(
+        conn: &Connection,
+        table: &str,
+        column: &str,
+        definition: &str,
+    ) -> rusqlite::Result<()> {
         let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
         let exists = stmt
             .query_map([], |row| row.get::<_, String>(1))?
             .filter_map(|r| r.ok())
             .any(|name| name == column);
         if !exists {
-            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"), [])?;
+            conn.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+                [],
+            )?;
         }
         Ok(())
     }
@@ -177,11 +185,7 @@ impl ChatDb {
                 Ok((name, pk))
             })
             .ok()
-            .and_then(|rows| {
-                rows.flatten()
-                    .find(|(_, pk)| *pk > 0)
-                    .map(|(name, _)| name)
-            })
+            .and_then(|rows| rows.flatten().find(|(_, pk)| *pk > 0).map(|(name, _)| name))
             .unwrap_or_else(|| FALLBACK.to_string())
         })
     }

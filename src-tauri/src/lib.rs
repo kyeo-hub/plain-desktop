@@ -1,3 +1,4 @@
+mod capture;
 mod commands;
 mod http_proxy;
 mod local;
@@ -101,7 +102,9 @@ pub fn run() {
                 log::warn!("screen capture shortcut registration failed: {error}");
             }
 
-            #[cfg(not(target_os = "windows"))]
+            // Windows and macOS use per-capture ephemeral overlays created at
+            // their final geometry, so there is nothing to prewarm.
+            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
             {
                 let runtime = app
                     .handle()
@@ -119,6 +122,11 @@ pub fn run() {
                         log::warn!("screen capture overlay prewarm failed: {error}");
                     }
                 }
+            }
+
+            #[cfg(all(debug_assertions, target_os = "macos"))]
+            if commands::screen_capture::selftest::armed() {
+                commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
             app.handle().manage(http_proxy::HttpProxyState::start());
@@ -362,6 +370,8 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_discard_result,
             commands::screen_capture::commands::screen_capture_request_permission,
             commands::screen_capture::commands::screen_capture_open_permission_settings,
+            commands::screen_capture::commands::screen_capture_shortcut_status,
+            commands::screen_capture::commands::screen_capture_set_shortcut,
             commands::screen_capture::commands::screen_capture_report_client_error,
             commands::screen_capture::commands::screen_capture_report_bootstrap_error,
             commands::screen_capture::commands::screen_capture_invalidate_target,
@@ -498,14 +508,12 @@ struct DPairingResult<'a> {
 /// - `PAIRING_SUCCESS` / `PAIRING_FAILED` / `PAIRING_CANCELED` → `DPairingResult`
 ///   JSON: `{ deviceId, deviceName, error }`
 fn forward_pairing_event_to_ws(
-    ws_event_tx: &tokio::sync::broadcast::Sender<
-        crate::local::graphql::context::WsEvent,
-    >,
+    ws_event_tx: &tokio::sync::broadcast::Sender<crate::local::graphql::context::WsEvent>,
     ev: &crate::local::pairing::PairingEvent,
 ) {
     use crate::local::graphql::context::{
-        WsEvent, WS_PAIRING_CANCELLED, WS_PAIRING_FAILED,
-        WS_PAIRING_REQUEST_RECEIVED, WS_PAIRING_STARTED, WS_PAIRING_SUCCESS,
+        WS_PAIRING_CANCELLED, WS_PAIRING_FAILED, WS_PAIRING_REQUEST_RECEIVED, WS_PAIRING_STARTED,
+        WS_PAIRING_SUCCESS, WsEvent,
     };
     use crate::local::pairing::PairingEventKind;
 

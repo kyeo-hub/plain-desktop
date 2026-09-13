@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use crate::local::db::{ChatDb, DPeer};
-use crate::local::graphql::context::{WsEvent, AppCtx};
+use crate::local::graphql::context::{AppCtx, WsEvent};
 
 /// Everything a peer resolver needs to fulfil a request.
 pub struct PeerCtx {
