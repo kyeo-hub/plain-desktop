@@ -234,7 +234,7 @@ export default {
   organize_keep_changes: '保留修改',
   work: '工作',
   expand_all: '展开全部',
-  collapse_all: '合并全部',
+  collapse_all: '收起全部',
   all: '全部',
   manage: '管理',
   manage_devices: '管理设备',
