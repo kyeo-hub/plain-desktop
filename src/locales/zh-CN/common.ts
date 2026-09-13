@@ -167,6 +167,8 @@ export default {
   check_phone: '请在手机上查看操作。',
   open_access_settings: '打开 访问设置',
   no_data: '没有数据。',
+  show_more: '显示更多',
+  show_less: '收起',
   load_more: '加载更多',
   no_more_data: '没有更多数据',
   loading: '加载中...',

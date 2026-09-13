@@ -137,6 +137,8 @@ export default {
   check_phone: 'スマートフォンをご確認ください。',
   open_access_settings: 'アクセス設定を開く',
   no_data: 'データがありません。',
+  show_more: 'もっと見る',
+  show_less: '閉じる',
   load_more: 'もっと読み込む',
   no_more_data: 'これ以上データはありません',
   loading: '読み込み中...',

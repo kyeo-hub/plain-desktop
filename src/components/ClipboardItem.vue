@@ -12,7 +12,10 @@
           <i-material-symbols:close-rounded />
         </button>
       </div>
-      <div class="clip-text" :class="{ sensitive: item.sensitive }">{{ item.text }}</div>
+      <div class="clip-text" :class="{ sensitive: item.sensitive, collapsed: isLong && !expanded }">{{ item.text }}</div>
+      <a v-if="isLong" href="#" class="show-more" @click.prevent="expanded = !expanded">
+        {{ $t(expanded ? 'show_less' : 'show_more') }}
+      </a>
     </div>
   </article>
 </template>
@@ -29,10 +32,14 @@ defineEmits<{
   delete: [item: IClipboard]
 }>()
 
+const LONG_TEXT_CHARS = 250
+
 const copied = ref(false)
+const expanded = ref(false)
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
 
 const hasName = computed(() => !!(props.item.label || props.item.source))
+const isLong = computed(() => (props.item.text?.length ?? 0) > LONG_TEXT_CHARS)
 
 const createdAt = computed(() => {
   const v = props.item.createdAt
@@ -138,14 +145,29 @@ async function copy() {
     font-size: 0.8rem;
     color: var(--md-sys-color-on-surface-variant);
     white-space: pre-wrap;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+
+    &.collapsed {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
 
     &.sensitive {
       -webkit-line-clamp: 1;
       filter: blur(4px);
+    }
+  }
+
+  .show-more {
+    align-self: flex-start;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
     }
   }
 

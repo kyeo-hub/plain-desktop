@@ -137,6 +137,8 @@ export default {
   check_phone: 'Bitte überprüfen Sie Ihr Telefon.',
   open_access_settings: 'Zugriffseinstellungen öffnen',
   no_data: 'Keine Daten.',
+  show_more: 'Mehr anzeigen',
+  show_less: 'Weniger anzeigen',
   load_more: 'Mehr laden',
   no_more_data: 'Keine weiteren Daten',
   loading: 'Laden...',

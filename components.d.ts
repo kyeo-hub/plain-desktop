@@ -238,7 +238,6 @@ declare module 'vue' {
     'IMaterialSymbols:contentCopyOutlineRounded': typeof import('~icons/material-symbols/content-copy-outline-rounded')['default']
     'IMaterialSymbols:contentCutRounded': typeof import('~icons/material-symbols/content-cut-rounded')['default']
     'IMaterialSymbols:contentPaste': typeof import('~icons/material-symbols/content-paste')['default']
-    'IMaterialSymbols:contentPasteOutlineRounded': typeof import('~icons/material-symbols/content-paste-outline-rounded')['default']
     'IMaterialSymbols:contentPasteRounded': typeof import('~icons/material-symbols/content-paste-rounded')['default']
     'IMaterialSymbols:createNewFolderOutlineRounded': typeof import('~icons/material-symbols/create-new-folder-outline-rounded')['default']
     'IMaterialSymbols:cropSquareOutline': typeof import('~icons/material-symbols/crop-square-outline')['default']

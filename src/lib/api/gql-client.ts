@@ -55,7 +55,7 @@ export async function encryptedGqlPost<T = any>(
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
   const json = JSON.stringify({ query, variables })
-  // Opt-in via DevTools (`__PLAIN_LOG__ = true`); the flag check runs before
+  // Enabled automatically in dev mode (see main.ts); the flag check runs before
   // any string building so the disabled path is one property read.
   if (window.__PLAIN_LOG__) console.info(`[request] ${json}`)
 

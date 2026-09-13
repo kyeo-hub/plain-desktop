@@ -140,6 +140,8 @@ export default {
   check_phone: 'আপনার ফোনে চেক করুন।',
   open_access_settings: 'অ্যাক্সেস সেটিংস খুলুন',
   no_data: 'কোন ডেটা নেই।',
+  show_more: 'আরও দেখুন',
+  show_less: 'কম দেখুন',
   load_more: 'আরো লোড করুন',
   no_more_data: 'আর কোনো ডেটা নেই',
   loading: 'লোড হচ্ছে...',

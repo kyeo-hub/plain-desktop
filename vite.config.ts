@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
   },
   server: {
     host: '0.0.0.0',
-    port: 4000,
+    port: isTauriMode ? 4000 : 3000,
     // WebCodecs requires cross-origin isolation for the hardware-accelerated
     // VideoDecoder/AudioDecoder paths — without these headers `crossOriginIsolated`
     // is false, `decode()` throws `Decoder error` even though `isConfigSupported`

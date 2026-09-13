@@ -176,6 +176,8 @@ export default {
   check_phone: 'Please check your phone.',
   open_access_settings: 'Open Access Settings',
   no_data: 'No data.',
+  show_more: 'Show more',
+  show_less: 'Show less',
   load_more: 'Load more',
   no_more_data: 'No more data',
   loading: 'Loading...',

@@ -136,6 +136,8 @@ export default {
   check_phone: 'Controleer uw telefoon.',
   open_access_settings: 'Toegangsinstellingen openen',
   no_data: 'Geen gegevens.',
+  show_more: 'Meer weergeven',
+  show_less: 'Minder weergeven',
   load_more: 'Meer laden',
   no_more_data: 'Geen verdere gegevens',
   loading: 'Laden...',

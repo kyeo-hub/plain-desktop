@@ -137,6 +137,8 @@ export default {
   check_phone: '휴대폰을 확인해 주세요.',
   open_access_settings: '액세스 설정 열기',
   no_data: '데이터 없음.',
+  show_more: '더 보기',
+  show_less: '접기',
   load_more: '더 불러오기',
   no_more_data: '더 이상 데이터 없음',
   loading: '로딩 중...',

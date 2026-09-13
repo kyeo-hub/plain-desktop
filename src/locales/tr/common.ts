@@ -136,6 +136,8 @@ export default {
   check_phone: 'Lütfen telefonunuzu kontrol edin.',
   open_access_settings: 'Erişim Ayarlarını Aç',
   no_data: 'Veri yok.',
+  show_more: 'Daha fazla göster',
+  show_less: 'Daha az göster',
   load_more: 'Daha fazla yükle',
   no_more_data: 'Daha fazla veri yok',
   loading: 'Yükleniyor...',

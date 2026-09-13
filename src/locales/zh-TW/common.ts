@@ -138,6 +138,8 @@ export default {
   check_phone: '請在手機上查看操作。',
   open_access_settings: '開啟 存取設定',
   no_data: '無資料。',
+  show_more: '顯示更多',
+  show_less: '收起',
   load_more: '載入更多',
   no_more_data: '沒有更多資料',
   loading: '載入中...',

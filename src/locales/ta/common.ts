@@ -136,6 +136,8 @@ export default {
   check_phone: 'உங்கள் தொலைபேசியை சரிபார்க்கவும்.',
   open_access_settings: 'அணுகல் அமைப்புகளை திற',
   no_data: 'தரவு இல்லை.',
+  show_more: 'மேலும் காட்டு',
+  show_less: 'சுருக்கு',
   load_more: 'மேலும் ஏற்றவும்',
   no_more_data: 'இனி தரவு இல்லை',
   loading: 'ஏற்றுகிறது...',

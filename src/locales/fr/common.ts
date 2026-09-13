@@ -138,6 +138,8 @@ export default {
   check_phone: 'Veuillez vérifier votre téléphone.',
   open_access_settings: 'Ouvrir les paramètres d\'accès',
   no_data: 'Pas de données.',
+  show_more: 'Afficher plus',
+  show_less: 'Afficher moins',
   load_more: 'Charger plus',
   no_more_data: 'Plus de données',
   loading: 'Chargement en cours...',

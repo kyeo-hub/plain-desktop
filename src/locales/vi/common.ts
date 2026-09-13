@@ -136,6 +136,8 @@ export default {
   check_phone: 'Vui lòng kiểm tra điện thoại của bạn.',
   open_access_settings: 'Mở Cài đặt truy cập',
   no_data: 'Không có dữ liệu.',
+  show_more: 'Xem thêm',
+  show_less: 'Thu gọn',
   load_more: 'Tải thêm',
   no_more_data: 'Không còn dữ liệu',
   loading: 'Đang tải...',

@@ -1,6 +1,8 @@
 import { bootstrapErrorDetail } from './bootstrap/bootstrap-error-detail'
 import { runSelectedBootstrap } from './bootstrap/select-bootstrap'
 
+if (import.meta.env.DEV) window.__PLAIN_LOG__ = true
+
 const pathname = window.location.pathname
 void runSelectedBootstrap(pathname, __IS_TAURI__, {
   loadFullApp: async () => {

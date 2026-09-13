@@ -136,6 +136,8 @@ export default {
   check_phone: 'कृपया अपना फोन जांचें।',
   open_access_settings: 'एक्सेस सेटिंग्स खोलें',
   no_data: 'नो डाटा.',
+  show_more: 'और देखें',
+  show_less: 'कम देखें',
   load_more: 'और लोड करें',
   no_more_data: 'कोई और डेटा नहीं',
   loading: 'लोडिंग...',
