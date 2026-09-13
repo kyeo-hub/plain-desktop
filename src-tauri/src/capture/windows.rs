@@ -481,12 +481,6 @@ mod tests {
                 right: 1920,
                 bottom: 1080,
             },
-            work: RECT {
-                left: 0,
-                top: 48,
-                right: 1920,
-                bottom: 1032,
-            },
             dpi: 96,
         };
         assert_eq!(monitor_id(0, &entry), "0:\\\\.\\DISPLAY1:0:0:1920:1080");

@@ -856,10 +856,12 @@ pub(crate) async fn finish_reserved_capture<R: Runtime>(
 }
 
 #[cfg(target_os = "linux")]
+use crate::capture::DisplayInfo;
+
+#[cfg(target_os = "linux")]
 fn portal_display_geometries<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Vec<DisplayInfo>, CaptureError> {
-    use crate::capture::DisplayInfo;
     use crate::capture::linux::wayland::MonitorSnapshot;
 
     let snapshots: Vec<MonitorSnapshot> = app
