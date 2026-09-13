@@ -17,8 +17,7 @@
     </div>
 
     <div class="quick-content-body">
-      <section v-if="groups.length" class="ntf-groups">
-        <notification-group
+      <notification-group
           v-for="g in groups"
           :key="g.peerId"
           :group="g"
@@ -40,9 +39,8 @@
             />
           </div>
           <div v-else class="g-empty">{{ $t(g.loading ? 'loading' : g.online ? 'no_data' : 'offline') }}</div>
-        </notification-group>
-      </section>
-      <NoDataPlaceholder v-else :loading="groups.some((g) => g.loading)" />
+      </notification-group>
+      <NoDataPlaceholder v-if="!groups.length" :loading="groups.some((g) => g.loading)" />
     </div>
   </div>
 </template>
@@ -70,11 +68,13 @@ const {
 </script>
 
 <style lang="scss" scoped>
-.ntf-groups {
+.quick-content-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 16px 24px;
+  gap: 16px;
+  .ntf-group:first-child {
+    margin-top: 16px;
+  }
 }
 
 .grp-items {

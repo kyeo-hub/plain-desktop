@@ -54,6 +54,7 @@ const collapsed = ref(false)
   border-radius: var(--pl-shape-l);
   background-color: var(--md-sys-color-surface-container);
   overflow: hidden;
+  margin: 0 16px;
 
   &.offline {
     .g-status,
@@ -71,6 +72,8 @@ const collapsed = ref(false)
   font-size: 0.85rem;
   cursor: pointer;
   user-select: none;
+  min-height: 48px;
+  box-sizing: border-box;
 
   .g-name {
     font-weight: 600;
