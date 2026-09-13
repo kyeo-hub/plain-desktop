@@ -1,6 +1,11 @@
 <template>
   <article class="item notification-item">
-    <img class="app-ico" width="40" height="40" :src="item.icon" alt="">
+    <v-dropdown v-model="iconMenuOpen">
+      <template #trigger>
+        <img class="app-ico" width="40" height="40" :src="item.icon" alt="">
+      </template>
+      <pre class="view-raw">{{ item }}</pre>
+    </v-dropdown>
     <div class="ntf-main">
       <div class="row1">
         <span class="name">{{ item.appName }}</span>
@@ -61,6 +66,7 @@ defineEmits<{
 }>()
 
 const replyText = ref('')
+const iconMenuOpen = ref(false)
 
 watch(
   () => props.replying,
@@ -73,6 +79,7 @@ watch(
 <style lang="scss" scoped>
 .item.notification-item {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px;
   border-radius: var(--pl-shape-m);

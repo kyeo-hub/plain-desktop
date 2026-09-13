@@ -18,6 +18,13 @@ const EmojiTextFieldStub = defineComponent({
   setup: (props) => () => h('textarea', { value: props.modelValue }),
 })
 
+const DropdownStub = defineComponent({
+  name: 'VDropdownStub',
+  setup(_, { slots }) {
+    return () => h('span', [slots.trigger?.(), slots.default?.()])
+  },
+})
+
 function makeItem(overrides: Partial<INotification> = {}): INotification {
   return {
     id: 'ntf-1',
@@ -46,6 +53,7 @@ function mountItem(item: INotification, extraProps: Record<string, unknown> = {}
         VOutlinedButton: ButtonStub,
         VFilledButton: ButtonStub,
         EmojiTextField: EmojiTextFieldStub,
+        VDropdown: DropdownStub,
       },
     },
   })
@@ -71,6 +79,12 @@ describe('NotificationItem', () => {
   it('hides the delete button when not deletable', () => {
     const wrapper = mountItem(makeItem(), { deletable: false })
     expect(wrapper.find('.del').exists()).toBe(false)
+  })
+
+  it('exposes the raw notification via the icon view-raw dropdown', () => {
+    const wrapper = mountItem(makeItem())
+    expect(wrapper.find('.app-ico').exists()).toBe(true)
+    expect(wrapper.find('pre.view-raw').text()).toContain('com.example.app')
   })
 
   it('emits delete from the row delete button', async () => {
