@@ -5,7 +5,8 @@
         <i-material-symbols:arrow-back-rounded />
       </button>
       <div class="title">
-        {{ $t('header_actions.notifications') }} ({{ total }})
+        {{ $t('header_actions.notifications') }}
+        <span v-if="total" class="count-pill">{{ total }}</span>
       </div>
       <div class="actions">
         <notification-sound-button v-model="notificationVolume" />
@@ -24,12 +25,12 @@
           @clear="clearGroup(g.peerId)"
           @open-settings="openSettings(g.peerId)"
         >
-          <div v-if="g.items.length" class="list-items">
+          <div v-if="g.items.length" class="grp-items">
             <notification-item
               v-for="item in g.items"
               :key="item.id"
               :item="item"
-              :replying="replyingId === replyId(g.peerId, item.id)"
+              :replying="replyingId === replyKey(g.peerId, item.id)"
               :sending="replySending"
               :deletable="g.online"
               @reply="startReply(g.peerId, item.id, $event)"
@@ -58,7 +59,7 @@ import { useLocalNotifications } from './local-notifications'
 const store = useMainStore()
 const { notificationVolume } = storeToRefs(store)
 
-const replyId = (peerId: string, id: string) => `${peerId}:${id}`
+const replyKey = (peerId: string, id: string) => `${peerId}:${id}`
 
 const {
   groups, total,
@@ -73,7 +74,11 @@ const {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px;
+  padding: 4px 16px 24px;
+}
+
+.grp-items {
+  display: contents;
 }
 
 .g-empty {

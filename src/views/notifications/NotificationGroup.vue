@@ -18,7 +18,7 @@
         <i-material-symbols:keyboard-arrow-down-rounded />
       </span>
     </div>
-    <template v-if="!collapsed">
+    <div v-if="!collapsed" class="grp-body">
       <div
         v-if="group.loaded && group.online && !group.permissions.includes('NOTIFICATION_LISTENER')"
         class="warn-banner"
@@ -28,7 +28,7 @@
         <button @click.stop="$emit('open-settings')">{{ $t('open_access_settings') }}</button>
       </div>
       <slot></slot>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -51,13 +51,13 @@ const collapsed = ref(false)
 
 <style lang="scss" scoped>
 .ntf-group {
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 16px;
+  border-radius: var(--pl-shape-l);
+  background-color: var(--md-sys-color-surface-container);
   overflow: hidden;
 
   &.offline {
     .g-status,
-    :deep(.list-items) {
+    .grp-body {
       opacity: 0.56;
     }
   }
@@ -67,9 +67,8 @@ const collapsed = ref(false)
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 8px 8px 12px;
   font-size: 0.85rem;
-  background-color: var(--md-sys-color-surface-container);
   cursor: pointer;
   user-select: none;
 
@@ -127,14 +126,19 @@ const collapsed = ref(false)
   }
 }
 
+.grp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
 .warn-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* 8px margin + 8px group-head bottom padding = 16px visual gap */
-  margin: 8px 12px 12px;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--pl-shape-m);
   background-color: color-mix(in srgb, var(--md-sys-color-warning) 16%, transparent);
   color: var(--md-sys-color-warning);
   font-size: 0.75rem;

@@ -5,7 +5,8 @@
         <i-material-symbols:arrow-back-rounded />
       </button>
       <div class="title">
-        {{ $t('header_actions.notifications') }} ({{ notifications.length }})
+        {{ $t('header_actions.notifications') }}
+        <span v-if="notifications.length" class="count-pill">{{ notifications.length }}</span>
         <div v-if="hasNotificationWarning" class="warning-indicator">
           <v-dropdown v-model="warningMenuVisible">
             <template #trigger>
@@ -38,7 +39,7 @@
     </div>
 
     <div class="quick-content-body">
-      <section v-if="notifications.length" class="list-items">
+      <section v-if="notifications.length" class="ntf-card">
         <notification-item
           v-for="item in notifications"
           :key="item.id"
@@ -72,3 +73,12 @@ const {
   startReply, cancelReply, sendReply, deleteItem, clearAll,
 } = useNotifications()
 </script>
+
+<style lang="scss" scoped>
+.ntf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px;
+}
+</style>
