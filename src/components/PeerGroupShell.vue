@@ -45,6 +45,9 @@ const collapsed = ref(false)
 
 <style lang="scss" scoped>
 .peer-group {
+  // flex item inside the scrollable .quick-content-body column: overflow:hidden
+  // would zero its automatic min-size and let siblings squash instead of overflow
+  flex-shrink: 0;
   border-radius: var(--pl-shape-l);
   background-color: var(--md-sys-color-surface-container);
   overflow: hidden;

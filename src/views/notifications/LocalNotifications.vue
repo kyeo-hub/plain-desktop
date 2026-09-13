@@ -38,7 +38,12 @@
               @delete="deleteItem(g.peerId, item.id)"
             />
           </div>
-          <div v-else class="g-empty">{{ $t(g.loading ? 'loading' : g.online ? 'no_data' : 'offline') }}</div>
+          <div
+            v-else-if="!(g.loaded && g.online && !g.permissions.includes('NOTIFICATION_LISTENER'))"
+            class="g-empty"
+          >
+            {{ $t(g.loading ? 'loading' : g.online ? 'no_data' : 'offline') }}
+          </div>
       </notification-group>
       <NoDataPlaceholder v-if="!groups.length" :loading="groups.some((g) => g.loading)" />
     </div>

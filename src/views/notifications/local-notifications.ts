@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import toast from '@/components/toaster'
+import tapPhone from '@/plugins/tapphone'
 import {
   peerNotificationGroups,
   dropPeerNotifications,
@@ -55,7 +55,7 @@ export function useLocalNotifications() {
 
   async function openSettings(peerId: string) {
     await openPeerNotificationSettings(peerId)
-    toast(t('check_phone'))
+    tapPhone(t('check_phone'))
   }
 
   return {
