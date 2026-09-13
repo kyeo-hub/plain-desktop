@@ -194,10 +194,10 @@ const {
         &::before {
           content: '';
           position: absolute;
-          width: 34px;
-          height: 34px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          border: 2.5px solid transparent;
+          border: 2px solid transparent;
           border-top-color: var(--md-sys-color-primary);
           border-right-color: var(--md-sys-color-primary);
           animation: upload-ring-spin 0.85s linear infinite;
