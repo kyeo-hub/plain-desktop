@@ -3,8 +3,7 @@
     <div class="group-head" @click="collapsed = !collapsed">
       <DeviceTypeIcon :device-type="deviceType" />
       <span class="g-name nowrap">{{ name }}</span>
-      <span class="dot" :class="online ? 'on' : 'off'"></span>
-      <span class="g-status">{{ $t(online ? 'online' : 'offline') }}</span>
+      <span v-tooltip="$t(online ? 'online' : 'offline')" class="dot" :class="online ? 'on' : 'off'"></span>
       <span class="g-count">{{ count }}</span>
       <button
         v-if="clearable"
@@ -52,7 +51,6 @@ const collapsed = ref(false)
   margin: 0 16px;
 
   &.offline {
-    .g-status,
     .grp-body {
       opacity: 0.56;
     }
@@ -72,11 +70,6 @@ const collapsed = ref(false)
 
   .g-name {
     font-weight: 600;
-  }
-
-  .g-status {
-    font-size: 0.72rem;
-    color: var(--md-sys-color-on-surface-variant);
   }
 
   .g-count {

@@ -11,9 +11,11 @@
       v-if="group.loaded && group.online && !group.permissions.includes('NOTIFICATION_LISTENER')"
       class="warn-banner"
     >
+    <div class="warn-row">
       <i-material-symbols:warning-outline />
       <span>{{ $t('notification_listener_permission_denied') }}</span>
-      <button @click.stop="$emit('open-settings')">{{ $t('open_access_settings') }}</button>
+    </div>
+    <v-text-button class="open-settings" @click.stop="$emit('open-settings')">{{ $t('open_access_settings') }}</v-text-button>
     </div>
     <slot></slot>
   </peer-group-shell>
@@ -36,23 +38,27 @@ defineEmits<{
 <style lang="scss" scoped>
 .warn-banner {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   padding: 8px 12px;
   border-radius: var(--pl-shape-m);
   background-color: color-mix(in srgb, var(--md-sys-color-warning) 16%, transparent);
   color: var(--md-sys-color-warning);
   font-size: 0.75rem;
 
-  button {
-    margin-inline-start: auto;
-    flex-shrink: 0;
-    font-weight: 600;
-    text-decoration: underline;
+  .warn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: stretch;
+  }
 
-    &:hover {
-      opacity: 0.8;
-    }
+  // element prefix outranks VTextButton's own scoped sizing
+  button.open-settings {
+    height: 28px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
   }
 }
 </style>
