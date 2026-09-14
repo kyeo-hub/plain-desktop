@@ -18,7 +18,7 @@
       </li>
     </ul>
     <button v-if="sortedBuckets.length > foldCount" class="toggle-more" @click.stop="showAll = !showAll">
-      {{ showAll ? $t('collapse_all') : $t('expand_all') }}
+      {{ showAll ? $t('show_less') : $t('show_more') }}
     </button>
   </LightboxFileInfoItem>
 </template>

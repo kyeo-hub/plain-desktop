@@ -2,6 +2,7 @@ import { createApp, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import EmojiTextField from '@/components/EmojiTextField.vue'
 import VTextField from '@/components/base/VTextField.vue'
+import VDropdown from '@/components/base/VDropdown.vue'
 
 function mountField() {
   const modelValue = ref('')
@@ -20,6 +21,7 @@ function mountField() {
     },
   })
   app.component('VTextField', VTextField)
+  app.component('VDropdown', VDropdown)
   app.config.globalProperties.$t = (key: string) => key
   app.mount(root)
 
@@ -43,22 +45,39 @@ async function setValue(textarea: HTMLTextAreaElement, value: string) {
 }
 
 describe('EmojiTextField', () => {
-  it('opens suggestions and inserts the active emoji with Enter', async () => {
+  it('opens suggestions in a v-dropdown portal and inserts the active emoji with Enter', async () => {
     const mounted = mountField()
     mountedApps.push(mounted)
     const textarea = mounted.root.querySelector('textarea')!
 
     await setValue(textarea, ':smi')
 
-    expect(mounted.root.querySelector('[role="listbox"]')).not.toBeNull()
-    expect(mounted.root.querySelector('.emoji-suggestion-shortcode')?.textContent).toBe(':smile:')
+    const listbox = document.querySelector('[role="listbox"]')
+    expect(listbox).not.toBeNull()
+    expect(listbox!.closest('.v-dropdown-portal')).not.toBeNull()
+    expect(document.querySelector('.v-dropdown-portal .dropdown-item.selected')).not.toBeNull()
+    expect(document.querySelector('.emoji-suggestion-shortcode')?.textContent).toBe(':smile:')
 
     textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     await nextTick()
 
     expect(mounted.modelValue.value).toBe('😄')
-    expect(mounted.root.querySelector('[role="listbox"]')).toBeNull()
+    expect(document.querySelector('[role="listbox"]')).toBeNull()
     expect(mounted.keydowns.value).toBe(0)
+  })
+
+  it('closes the suggestion menu on outside clicks', async () => {
+    const mounted = mountField()
+    mountedApps.push(mounted)
+    const textarea = mounted.root.querySelector('textarea')!
+
+    await setValue(textarea, ':smi')
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull()
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+
+    expect(document.querySelector('[role="listbox"]')).toBeNull()
   })
 
   it('converts a completed shortcode as it is typed', async () => {

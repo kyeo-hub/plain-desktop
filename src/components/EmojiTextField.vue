@@ -1,5 +1,28 @@
 <template>
   <div class="emoji-text-field">
+    <v-dropdown :model-value="menuOpen" strategy="below" full-width @update:model-value="menuOpen = $event">
+      <div
+        ref="menuRef"
+        class="emoji-suggestion-list"
+        role="listbox"
+        :aria-label="$t('emoji_suggestions')"
+      >
+        <div
+          v-for="(suggestion, index) in suggestions"
+          :key="suggestion.shortcode"
+          class="dropdown-item"
+          :class="{ selected: index === activeIndex }"
+          role="option"
+          :aria-selected="index === activeIndex"
+          @mouseenter="activeIndex = index"
+          @mousedown.prevent
+          @click="selectSuggestion(suggestion)"
+        >
+          <span class="emoji-suggestion-character">{{ suggestion.emoji }}</span>
+          <span class="emoji-suggestion-shortcode">:{{ suggestion.shortcode }}:</span>
+        </div>
+      </div>
+    </v-dropdown>
     <v-text-field
       ref="fieldRef"
       :model-value="modelValue"
@@ -27,34 +50,11 @@
         <slot name="footer" />
       </template>
     </v-text-field>
-    <div
-      v-if="activeShortcode && suggestions.length"
-      ref="menuRef"
-      class="emoji-suggestions"
-      role="listbox"
-      :aria-label="$t('emoji_suggestions')"
-    >
-      <button
-        v-for="(suggestion, index) in suggestions"
-        :key="suggestion.shortcode"
-        type="button"
-        class="emoji-suggestion"
-        :class="{ active: index === activeIndex }"
-        role="option"
-        :aria-selected="index === activeIndex"
-        @mouseenter="activeIndex = index"
-        @mousedown.prevent
-        @click="selectSuggestion(suggestion)"
-      >
-        <span class="emoji-suggestion-character">{{ suggestion.emoji }}</span>
-        <span class="emoji-suggestion-shortcode">:{{ suggestion.shortcode }}:</span>
-      </button>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   applyEmojiSuggestion,
   findActiveEmojiShortcode,
@@ -100,6 +100,16 @@ const activeShortcode = ref<ActiveEmojiShortcode | null>(null)
 const suggestions = ref<EmojiSuggestion[]>([])
 const activeIndex = ref(0)
 const currentValue = ref(props.modelValue)
+
+const menuOpen = computed({
+  get: () => activeShortcode.value !== null && suggestions.value.length > 0,
+  set: (open: boolean) => {
+    if (!open) {
+      activeShortcode.value = null
+      suggestions.value = []
+    }
+  },
+})
 
 watch(() => props.modelValue, (value) => {
   currentValue.value = value
@@ -218,45 +228,28 @@ defineExpose({
   position: relative;
   width: 100%;
 }
+</style>
 
-.emoji-suggestions {
-  position: absolute;
-  z-index: 30;
-  left: 0;
-  bottom: calc(100% + 6px);
-  width: min(320px, 100%);
+<style lang="scss">
+/* Menu content teleports to <body>, so these styles cannot be scoped.
+   Item chrome (padding/hover/selected colors) comes from the global
+   .dropdown-item in _base.scss — only emoji-specific bits live here. */
+.emoji-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: calc(100vw - 32px);
   max-height: 264px;
   overflow-y: auto;
-  padding: 6px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 10px;
-  background: var(--md-sys-color-surface-container-high);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
+  padding: 4px;
 
-.emoji-suggestion {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 10px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 6px;
-  color: var(--md-sys-color-on-surface);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover,
-  &.active {
-    background: var(--md-sys-color-secondary-container);
-    color: var(--md-sys-color-on-secondary-container);
+  .dropdown-item {
+    border-radius: 4px;
   }
 }
 
 .emoji-suggestion-character {
-  width: 26px;
+  width: 24px;
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   font-size: 20px;
   line-height: 1;
