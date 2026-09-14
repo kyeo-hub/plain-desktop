@@ -130,6 +130,7 @@ export default {
   from: 'De',
   type: 'Tipo',
   no_permission: 'Sem permissão. Por favor, vá para APP > "Configurações de acesso" para habilitar as permissões e atualize a página.',
+  clipboard_sync_disabled: 'A sincronização da área de transferência está desativada no telefone. Ative-a em APP > "Configurações de acesso".',
   notification_listener_permission_denied: "O acesso às notificações não está ativado neste dispositivo.",
   screen_capture_permission_denied: "É necessária a permissão de gravação de tela. Permita o PlainApp em Ajustes do Sistema > Privacidade e Segurança > Gravação de Tela e tente novamente.",
   check_phone: 'Por favor, verifique o seu telefone.',

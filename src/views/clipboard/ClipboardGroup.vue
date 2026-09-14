@@ -15,7 +15,7 @@
         @delete="deleteItem(group.peerId, [$event.id])"
       />
     </div>
-    <div v-else class="g-empty">{{ $t(group.loading ? 'loading' : group.online ? 'no_data' : 'offline') }}</div>
+    <div v-else class="g-empty">{{ $t(emptyKey) }}</div>
     <v-pagination
       v-if="group.total > limit"
       :page="group.page"
@@ -27,12 +27,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import PeerGroupShell from '@/components/PeerGroupShell.vue'
 import ClipboardItem from '@/components/ClipboardItem.vue'
 import type { PeerClipboardGroup } from '@/lib/peer/local-clipboard-data'
 import { useLocalClipboardActions } from './local-clipboard'
 
-defineProps<{
+const props = defineProps<{
   group: PeerClipboardGroup
 }>()
 
@@ -41,6 +42,12 @@ defineEmits<{
 }>()
 
 const { limit, deleteItem, fetchPage } = useLocalClipboardActions()
+
+const emptyKey = computed(() => {
+  if (props.group.loading) return 'loading'
+  if (props.group.clipboardSync === false) return 'clipboard_sync_disabled'
+  return props.group.online ? 'no_data' : 'offline'
+})
 </script>
 
 <style lang="scss" scoped>

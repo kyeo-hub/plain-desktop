@@ -133,6 +133,7 @@ export default {
   time: 'Orario',
   browser_warning: 'Si consiglia di utilizzare l\'ultima versione del browser web Chrome',
   no_permission: 'Nessun permesso. Vai su APP > "Impostazioni di accesso" per abilitare i permessi e aggiorna la pagina.',
+  clipboard_sync_disabled: 'La sincronizzazione degli appunti è disattivata sul telefono. Attivala in APP > "Impostazioni di accesso".',
   notification_listener_permission_denied: "Accesso alle notifiche non attivo su questo dispositivo.",
   screen_capture_permission_denied: "È richiesta l'autorizzazione di registrazione dello schermo. Consenti PlainApp in Impostazioni di sistema > Privacy e sicurezza > Registrazione schermo e riprova.",
   check_phone: 'Si prega di controllare il telefono.',

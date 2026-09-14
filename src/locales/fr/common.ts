@@ -133,6 +133,7 @@ export default {
   time: 'Heure',
   browser_warning: 'Il est recommandé d\'utiliser la dernière version du navigateur web Chrome.',
   no_permission: 'Pas de permission. Veuillez accéder à APP > "Paramètres d\'accès" pour activer les autorisations et actualisez la page.',
+  clipboard_sync_disabled: "La synchronisation du presse-papiers est désactivée sur le téléphone. Veuillez l'activer dans APP > \"Paramètres d'accès\".",
   notification_listener_permission_denied: "Accès aux notifications non activé sur cet appareil.",
   screen_capture_permission_denied: "L'autorisation d'enregistrement de l'écran est requise. Autorisez PlainApp dans Réglages système > Confidentialité et sécurité > Enregistrement de l'écran, puis réessayez.",
   check_phone: 'Veuillez vérifier votre téléphone.',

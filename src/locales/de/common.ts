@@ -132,6 +132,7 @@ export default {
   type: 'Typ',
   time: 'Zeit',
   no_permission: 'Keine Berechtigung. Bitte gehen Sie zu APP > "Zugriffseinstellungen", um die Berechtigungen zu aktivieren, und aktualisieren Sie die Seite.',
+  clipboard_sync_disabled: 'Die Zwischenablage-Synchronisierung ist auf dem Telefon deaktiviert. Bitte aktivieren Sie sie unter APP > "Zugriffseinstellungen".',
   notification_listener_permission_denied: "Der Benachrichtigungszugriff ist auf diesem Gerät nicht aktiviert.",
   screen_capture_permission_denied: "Die Berechtigung zur Bildschirmaufnahme ist erforderlich. Erlauben Sie PlainApp unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuchen Sie es erneut.",
   check_phone: 'Bitte überprüfen Sie Ihr Telefon.',

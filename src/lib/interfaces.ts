@@ -464,6 +464,7 @@ export interface IApp {
   osVersion: number
   channel: AppChannelType
   permissions: string[]
+  clipboardSync: boolean
   audios: IPlaylistAudio[]
   audioCurrent: string
   audioMode: string

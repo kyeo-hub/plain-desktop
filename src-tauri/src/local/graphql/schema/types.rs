@@ -180,6 +180,7 @@ pub struct App {
     pub internal_storage_path: String,
     pub downloads_dir: String,
     pub developer_mode: bool,
+    pub clipboard_sync: bool,
     pub favorite_folders: Vec<FavoriteFolder>,
     pub debug: bool,
 }

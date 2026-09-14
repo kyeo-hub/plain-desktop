@@ -31,6 +31,9 @@ export interface PeerClipboardGroup {
   /** True only until the first fetch settles; background refreshes never show it. */
   loading: boolean
   loaded: boolean
+  /** Phone-side master switch inferred from the list fetch: true = served,
+   *  false = peer answered clipboard_sync_disabled, null = not attempted yet. */
+  clipboardSync: boolean | null
   page: number
   total: number
   items: IClipboard[]
@@ -50,28 +53,32 @@ function limit() {
   return useMainStore().pageSize
 }
 
-function fetchPeerClipboard(peerId: string, silent = false) {
+async function fetchPeerClipboard(peerId: string, silent = false) {
   const peer = findLoginPeer(peerId)
   const group = groupOf(peerId)
   if (!peer || !group) return
+  if (group.clipboardSync === false) return
   if (!silent && !group.loaded) group.loading = true
-  gqlFetchPeer<{ clipboard: IClipboard[]; clipboardCount: number }>(
-    peer,
-    PEER_CLIPBOARD_GQL,
-    { offset: (group.page - 1) * limit(), limit: limit(), query: '' },
-  )
-    .then((res) => {
+  try {
+    const res = await gqlFetchPeer<{ clipboard: IClipboard[]; clipboardCount: number }>(
+      peer,
+      PEER_CLIPBOARD_GQL,
+      { offset: (group.page - 1) * limit(), limit: limit(), query: '' },
+    )
+    if (res.errors?.length) {
+      if (res.errors[0].message === 'clipboard_sync_disabled') group.clipboardSync = false
+    } else {
+      group.clipboardSync = true
       group.items = res.data?.clipboard ?? []
       group.total = res.data?.clipboardCount ?? 0
-      group.online = true
-    })
-    .catch(() => {
-      group.online = false
-    })
-    .finally(() => {
-      group.loaded = true
-      group.loading = false
-    })
+    }
+    group.online = true
+  } catch {
+    group.online = false
+  } finally {
+    group.loaded = true
+    group.loading = false
+  }
 }
 
 function syncGroups() {
@@ -90,10 +97,20 @@ function syncGroups() {
     }
     peerClipboardGroups.value.push({
       peerId: p.id, name: p.name, deviceType: p.deviceType,
-      online: true, loading: true, loaded: false, page: 1, total: 0, items: [],
+      online: true, loading: true, loaded: false, clipboardSync: null, page: 1, total: 0, items: [],
     })
     fetchPeerClipboard(p.id)
   }
+}
+
+/** Event 39 means the phone is broadcasting clipboard changes, so a previously
+ *  disabled peer gets its probe re-armed here. */
+export function handlePeerClipboardEvent(peerId: string, type: number) {
+  if (type !== CLIPBOARD_EVENT_TYPE) return
+  const group = groupOf(peerId)
+  if (!group || !findLoginPeer(peerId)) return
+  if (group.clipboardSync === false) group.clipboardSync = null
+  fetchPeerClipboard(peerId, true)
 }
 
 /** Idempotent bootstrap — call once from the app root in local mode. */
@@ -101,12 +118,7 @@ export function startLocalClipboardData() {
   if (started || !__IS_TAURI__ || !isLocalMode()) return
   started = true
 
-  emitter.on('peer_ws_event', ({ peerId, type }) => {
-    if (type !== CLIPBOARD_EVENT_TYPE) return
-    const group = groupOf(peerId)
-    if (!group || !findLoginPeer(peerId)) return
-    fetchPeerClipboard(peerId, true)
-  })
+  emitter.on('peer_ws_event', ({ peerId, type }) => handlePeerClipboardEvent(peerId, type))
 
   syncGroups()
   watch(loginPeers, syncGroups)

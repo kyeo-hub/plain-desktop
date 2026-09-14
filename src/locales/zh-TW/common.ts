@@ -133,6 +133,7 @@ export default {
   type: '類型',
   time: '時間',
   no_permission: '無權限。請前往APP > 「存取設定」啟用權限並重新整理頁面。',
+  clipboard_sync_disabled: '剪貼簿同步已在手機上關閉。請前往 APP > 「存取設定」開啟。',
   notification_listener_permission_denied: "該裝置未開啟通知監聽權限。",
   screen_capture_permission_denied: "需要螢幕錄製權限。請在「系統設定 > 隱私權與安全性 > 螢幕錄製」中允許 PlainApp 後再試一次。",
   check_phone: '請在手機上查看操作。',

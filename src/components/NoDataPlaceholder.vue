@@ -1,7 +1,7 @@
 <template>
   <div class="no-data-placeholder">
     <span>{{ $t(dataKey) }}</span>
-    <a v-if="isNoPermission" href="#" class="open-settings-link" @click.prevent="openSettings">{{ $t('open_access_settings') }}</a>
+    <a v-if="showSettingsLink" href="#" class="open-settings-link" @click.prevent="openSettings">{{ $t('open_access_settings') }}</a>
   </div>
 </template>
 
@@ -16,11 +16,12 @@ const props = defineProps<{
   loading: boolean
   permissions?: string[]
   permission?: string
+  placeholderKey?: string
 }>()
 
 const { t } = useI18n()
-const dataKey = computed(() => noDataKey(props.loading, props.permissions ?? [], props.permission ?? ''))
-const isNoPermission = computed(() => dataKey.value === 'no_permission')
+const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.permissions ?? [], props.permission ?? ''))
+const showSettingsLink = computed(() => dataKey.value === 'no_permission' || !!props.placeholderKey)
 
 const { mutate } = initMutation({ document: openWebSettingsGQL })
 

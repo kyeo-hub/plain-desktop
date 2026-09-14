@@ -20,7 +20,11 @@
           @delete="deleteItem"
         />
       </section>
-      <NoDataPlaceholder v-else :loading="loading" />
+      <NoDataPlaceholder
+        v-else
+        :loading="loading"
+        :placeholder-key="clipboardSync ? '' : 'clipboard_sync_disabled'"
+      />
       <v-pagination
         v-if="total > limit"
         :page="page"
@@ -35,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from 'vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import ClipboardItem from '@/components/ClipboardItem.vue'
 import { useMainStore } from '@/stores/main'
@@ -42,7 +47,15 @@ import { useClipboardData } from './clipboard'
 
 const store = useMainStore()
 
-const { items, total, page, limit, loading, gotoPage, onChangePageSize, deleteItem } = useClipboardData()
+const { items, total, page, limit, loading, clipboardSync, load, open, gotoPage, onChangePageSize, deleteItem } = useClipboardData()
+
+watch(() => store.quick === 'clipboard', (visible) => {
+  if (visible) open()
+})
+
+watch(clipboardSync, (enabled) => {
+  if (enabled && store.quick === 'clipboard') load()
+})
 </script>
 
 <style lang="scss" scoped>

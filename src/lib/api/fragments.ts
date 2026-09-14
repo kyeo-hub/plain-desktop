@@ -37,6 +37,7 @@ export const appFragment = `
     osVersion
     channel
     permissions
+    clipboardSync
     audios {
       ...PlaylistAudioFragment
     }

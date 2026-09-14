@@ -171,6 +171,7 @@ export default {
   type: 'Type',
   time: 'Time',
   no_permission: 'No permission. Please go to APP > "Access Settings" to enable the permissions and refresh the page.',
+  clipboard_sync_disabled: 'Clipboard sync is disabled on the phone. Please enable it in APP > "Access Settings".',
   notification_listener_permission_denied: "Notification access is not enabled on this device.",
   screen_capture_permission_denied: "Screen recording permission is required. Allow PlainApp in System Settings > Privacy & Security > Screen Recording, then try again.",
   check_phone: 'Please check your phone.',

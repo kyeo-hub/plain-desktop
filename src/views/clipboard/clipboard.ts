@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
+import emitter from '@/plugins/eventbus'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { initLazyQuery, clipboardGQL } from '@/lib/api/query'
@@ -17,10 +18,14 @@ export function useClipboardData() {
   const limit = computed(() => mainStore.pageSize)
   const items = ref<IClipboard[]>([])
   const total = ref(0)
+  /** Phone-side master switch — served by the resident app query, never a dedicated request. */
+  const clipboardSync = computed(() => app.value?.clipboardSync ?? false)
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { clipboard: IClipboard[]; clipboardCount: number }, error: string) => {
-      if (error) {
+      if (error === 'clipboard_sync_disabled') {
+        // Switch turned off after load; the app query state reflects it, stay quiet.
+      } else if (error) {
         toast(t(error), 'error')
       } else if (data) {
         items.value = data.clipboard
@@ -34,6 +39,22 @@ export function useClipboardData() {
       query: '',
     }),
   })
+
+  function load() {
+    if (clipboardSync.value) fetch()
+  }
+
+  /** Panel opened: reload when enabled; otherwise refresh the app query so a
+   *  phone-side toggle is picked up. */
+  function open() {
+    if (clipboardSync.value) {
+      fetch()
+    } else {
+      emitter.emit('refetch_app')
+    }
+  }
+
+  load()
 
   const gotoPage = (p: number) => {
     page.value = p
@@ -54,10 +75,8 @@ export function useClipboardData() {
     cancelClipboard({ ids: [item.id] })
   }
 
-  fetch()
-
   return {
-    app, items, total, page, limit, loading,
-    gotoPage, onChangePageSize, deleteItem,
+    app, items, total, page, limit, loading, clipboardSync,
+    load, open, gotoPage, onChangePageSize, deleteItem,
   }
 }

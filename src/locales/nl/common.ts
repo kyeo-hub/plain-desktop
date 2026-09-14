@@ -131,6 +131,7 @@ export default {
   type: 'Typ',
   time: 'Tijd',
   no_permission: 'Geen toestemming. Ga naar APP > "Toegangsinstellingen" om de toestemmingen in te schakelen en vernieuw de pagina.',
+  clipboard_sync_disabled: 'Klembordsynchronisatie is uitgeschakeld op de telefoon. Schakel deze in via APP > "Toegangsinstellingen".',
   notification_listener_permission_denied: "Toegang tot meldingen is niet ingeschakeld op dit apparaat.",
   screen_capture_permission_denied: "Toestemming voor schermopname is vereist. Sta PlainApp toe in Systeeminstellingen > Privacy en beveiliging > Schermopname en probeer het opnieuw.",
   check_phone: 'Controleer uw telefoon.',

@@ -43,6 +43,9 @@ impl AppQuery {
             internal_storage_path: String::new(),
             downloads_dir: String::new(),
             developer_mode: false,
+            // Mirrors plain-app `App.clipboardSync`. The desktop has no privacy
+            // switch of its own — clipboard sync is always available locally.
+            clipboard_sync: true,
             favorite_folders: vec![],
             debug: cfg!(debug_assertions),
         }

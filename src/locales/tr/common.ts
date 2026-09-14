@@ -131,6 +131,7 @@ export default {
   type: 'Tür',
   time: 'Zaman',
   no_permission: 'İzin yok. Lütfen APP > "Erişim Ayarları"na gidin, izinleri etkinleştirin ve sayfayı yenileyin.',
+  clipboard_sync_disabled: 'Pano senkronizasyonu telefonda devre dışı. Lütfen APP > "Erişim Ayarları"ndan etkinleştirin.',
   notification_listener_permission_denied: "Bu cihazda bildirim erişimi etkin değil.",
   screen_capture_permission_denied: "Ekran kaydı izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Ekran Kaydı bölümünde PlainApp'e izin verin ve tekrar deneyin.",
   check_phone: 'Lütfen telefonunuzu kontrol edin.',

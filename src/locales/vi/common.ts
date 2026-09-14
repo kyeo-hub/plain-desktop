@@ -131,6 +131,7 @@ export default {
   type: 'Loại',
   time: 'Thời gian',
   no_permission: 'Không có quyền. Vui lòng vào APP > "Cài đặt truy cập" để bật quyền và làm mới trang.',
+  clipboard_sync_disabled: 'Đồng bộ clipboard đã bị tắt trên điện thoại. Vui lòng bật trong APP > "Cài đặt truy cập".',
   notification_listener_permission_denied: "Quyền truy cập thông báo chưa được bật trên thiết bị này.",
   screen_capture_permission_denied: "Cần quyền ghi màn hình. Hãy cho phép PlainApp trong Cài đặt hệ thống > Quyền riêng tư và Bảo mật > Ghi màn hình rồi thử lại.",
   check_phone: 'Vui lòng kiểm tra điện thoại của bạn.',
